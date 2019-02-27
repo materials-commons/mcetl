@@ -16,7 +16,7 @@ package cmd
 
 import (
 	"fmt"
-
+	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/spf13/cobra"
 )
 
@@ -26,9 +26,7 @@ var loadCmd = &cobra.Command{
 	Short: "Loads the given spreadsheet(s) and performs ETL.",
 	Long: `The load command will read and process the given spreadsheets. The spreadsheets are processes
 in the order given.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("load called")
-	},
+	Run: cliCmdLoad,
 }
 
 func init() {
@@ -43,4 +41,14 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// loadCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}
+
+func cliCmdLoad(cmd *cobra.Command, args []string) {
+	xlsx, err := excelize.OpenFile("./Book1.xlsx")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	var _ = xlsx
 }

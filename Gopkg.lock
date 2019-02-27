@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  name = "github.com/360EntSecGroup-Skylar/excelize"
+  packages = ["."]
+  revision = "dea7ba0ec43a4c29a6642d02b6edc73b8b0369f0"
+  version = "v1.4.1"
+
+[[projects]]
   name = "github.com/fsnotify/fsnotify"
   packages = ["."]
   revision = "c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9"
@@ -47,6 +53,12 @@
   packages = ["."]
   revision = "3536a929edddb9a5b34bd6861dc4a9647cb459fe"
   version = "v1.1.2"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/mohae/deepcopy"
+  packages = ["."]
+  revision = "c48cc78d482608239f6c4c92a4abd87eb8761c90"
 
 [[projects]]
   name = "github.com/pelletier/go-toml"
@@ -121,6 +133,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "bed32130c6da7b78e68ac967582e26605e5eb530377bea1aa69d09656c13f4da"
+  inputs-digest = "80282d3861b71bfde4ace3602a6bebb15d4788ad46786b607a273c493d5c90dd"
   solver-name = "gps-cdcl"
   solver-version = 1
