@@ -33,20 +33,16 @@ in the order given.`,
 
 func init() {
 	rootCmd.AddCommand(loadCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// loadCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// loadCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	loadCmd.Flags().StringP("file", "f", "", "Path to the excel spreadsheet")
 }
 
 func cliCmdLoad(cmd *cobra.Command, args []string) {
-	xlsx, err := excelize.OpenFile("/tmp/tracking-example.xlsx")
+	file, err := cmd.Flags().GetString("file")
+	if err != nil {
+		fmt.Print("error", err)
+	}
+
+	xlsx, err := excelize.OpenFile(file)
 	if err != nil {
 		fmt.Println(err)
 		return
