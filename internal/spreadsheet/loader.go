@@ -153,11 +153,15 @@ func cell2NameAndUnit(cell string) (name, unit string) {
 
 	switch {
 	case indexClosingParen != -1:
-		return cell[:indexOpeningParen], cell[indexOpeningParen+1 : indexClosingParen]
+		name = cell[:indexOpeningParen]
+		unit = cell[indexOpeningParen+1 : indexClosingParen]
+		return name, unit
 	default:
 		// indexClosingParen == -1, which means we have a string like: abc(c
 		// that has no closing paren
-		return cell[:indexOpeningParen], cell[indexOpeningParen+1:]
+		name = cell[:indexOpeningParen]
+		unit = cell[indexOpeningParen+1:]
+		return name, unit
 	}
 }
 
