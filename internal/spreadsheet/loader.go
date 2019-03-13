@@ -6,6 +6,8 @@ import (
 	"github.com/materials-commons/mcetl/internal/spreadsheet/model"
 )
 
+// Load will load the given excel file. This assumes that each process is in a separate
+// worksheet and the process will take on the name of the worksheet.
 func Load(path string) ([]*model.Process, error) {
 	var processes []*model.Process
 	xlsx, err := excelize.OpenFile(path)
@@ -26,6 +28,22 @@ func Load(path string) ([]*model.Process, error) {
 	return processes, savedErr
 }
 
+// loadWorksheet will load the given worksheet into the model.Process data structure. The spreadsheet
+// must have the follow format:
+//   1st row is composed of headers as follows:
+//     |sample|parent sample|optional process attribute columns|<blank>|optional sample attribute columns|
+// Examples:
+//    This example has no process attributes
+//         |sample|parent sample||sample attr1(unit)|sample attr2(unit)|
+//    This example has process attributes and no sample attributes
+//         |sample|parent sample|process attr1(unit)|process attr2|
+//    This example has 1 process attribute and 2 sample attributes
+//         |sample|parent sample|process attr1(unit)||sample attr1(unit)|sample attr2(unit)|
+//
+// Attributes have the following format: name(unit)
+// For example:
+//    temperature(c)   - Attribute name temperature with unit c
+//    length           - Attribute length with no unit
 func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model.Process, error) {
 	process := &model.Process{
 		Name:  worksheetName,
@@ -36,8 +54,17 @@ func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model
 		return process, err
 	}
 
-	rowHeaders := true
+	rowHeaders := true // Start off processing row headers
 	row := 0
+
+	// Sample attributes start at column 4 or greater. Remember the format is:
+	// |sample|parent sample|<blank>|sample attr
+	// That is there must be a blank column before sample attributes start. The
+	// column that this starts can be greater than 4 if there are process attributes.
+	// For example the following example would have startingSampleAttrsCol = 6
+	//      1        2             3           4         5   6
+	//   |sample|parent sample|process attr|process attr||sample attr
+	// where 5 is our blank column
 	startingSampleAttrsCol := 4
 	for rows.Next() {
 		row++
