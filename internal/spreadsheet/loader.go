@@ -13,13 +13,17 @@ func Load(path string) ([]*model.Process, error) {
 		return processes, err
 	}
 
+	var savedErr error
 	for index, name := range xlsx.GetSheetMap() {
-		if process, err := loadWorksheet(xlsx, name, index); err != nil {
-			processes = append(processes, process)
+		process, err := loadWorksheet(xlsx, name, index)
+		if err != nil {
+			savedErr = err
+			continue
 		}
+		processes = append(processes, process)
 	}
 
-	return processes, err
+	return processes, savedErr
 }
 
 func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model.Process, error) {
@@ -48,27 +52,19 @@ func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model
 					continue
 				}
 
-				//fmt.Printf("column %d, value '%s'\n", column, colCell)
-
 				if colCell == "" && inProcessAttrs {
 					inProcessAttrs = false
 					startingSampleAttrsCol = column + 1
-					//fmt.Println("Setting startingSampleAttrsCol to", startingSampleAttrsCol)
 				} else if inProcessAttrs {
-					//fmt.Println("Add ProcessAttr", colCell, column)
 					attr := model.NewAttribute(colCell, "", column)
 					process.AddAttribute(attr)
 				} else {
-					// in sample attrs
-					//fmt.Println("AddSampleAttr", colCell, column)
 					attr := model.NewAttribute(colCell, "", column)
 					process.AddSampleAttr(attr)
 				}
 			}
 			rowHeaders = false
 		} else {
-			//fmt.Println("SampleAttrs length", len(process.SampleAttrs))
-			//fmt.Println("Starting sample attrs column", startingSampleAttrsCol)
 			column := 0
 			inProcessAttrs := true
 			var currentSample *model.Sample
@@ -89,9 +85,7 @@ func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model
 					// Not sure what to do here
 				} else {
 					// in sample attrs
-					//fmt.Println("I think this is a sample attr", column)
 					attr := process.SampleAttrs[column-startingSampleAttrsCol]
-					//fmt.Println("  looked up attr", attr.Name)
 					sampleAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
 					sampleAttr.Value = colCell
 					currentSample.AddAttribute(sampleAttr)
