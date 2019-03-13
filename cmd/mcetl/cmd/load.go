@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/materials-commons/mcetl/internal/spreadsheet"
+
 	"github.com/spf13/cobra"
 )
 
@@ -26,39 +26,24 @@ func cliCmdLoad(cmd *cobra.Command, args []string) {
 	file, err := cmd.Flags().GetString("file")
 	if err != nil {
 		fmt.Print("error", err)
-	}
-
-	xlsx, err := excelize.OpenFile(file)
-	if err != nil {
-		fmt.Println(err)
 		return
 	}
 
-	var processes []*spreadsheet.Process
+	processes, err := spreadsheet.Load(file)
 
-	for index, name := range xlsx.GetSheetMap() {
-		p := &spreadsheet.Process{
-			Name:  name,
-			Index: index,
+	for _, process := range processes {
+		fmt.Println("Process", process.Name)
+		fmt.Println("   Process Attributes:")
+		for _, pattr := range process.Attributes {
+			fmt.Println("     ", pattr.Name)
 		}
-		processes = append(processes, p)
-		fmt.Println(index, name)
-		loadWorksheet(xlsx, p)
-	}
-}
-
-func loadWorksheet(xlsx *excelize.File, p *spreadsheet.Process) {
-	rows, err := xlsx.Rows(p.Name)
-	if err != nil {
-		fmt.Println("Rows returned error", err)
-		return
-	}
-
-	for rows.Next() {
-		for _, colCell := range rows.Columns() {
-			fmt.Print(colCell, "\t")
+		fmt.Println("    Samples:")
+		for _, sample := range process.Samples {
+			fmt.Println("        ", sample.Name)
+			fmt.Println("             Attributes:")
+			for _, sattr := range sample.Attributes {
+				fmt.Println("               ", sattr.Name, "/", sattr.Value)
+			}
 		}
-		fmt.Println()
 	}
-
 }
