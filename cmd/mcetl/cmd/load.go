@@ -12,9 +12,8 @@ import (
 var loadCmd = &cobra.Command{
 	Use:   "load",
 	Short: "Loads the given spreadsheet(s) and performs ETL.",
-	Long: `The load command will read and process the given spreadsheets. The spreadsheets are processes
-in the order given.`,
-	Run: cliCmdLoad,
+	Long:  `The load command will read and process the given spreadsheets. The spreadsheets are processed in the order given.`,
+	Run:   cliCmdLoad,
 }
 
 func init() {
