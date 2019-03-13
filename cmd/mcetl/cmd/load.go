@@ -30,20 +30,12 @@ func cliCmdLoad(cmd *cobra.Command, args []string) {
 	}
 
 	processes, err := spreadsheet.Load(file)
+	if err != nil {
+		fmt.Println("Loading spreadsheet failed:", err)
+		return
+	}
 
-	for _, process := range processes {
-		fmt.Println("Process", process.Name)
-		fmt.Println("   Process Attributes:")
-		for _, pattr := range process.Attributes {
-			fmt.Println("     ", pattr.Name)
-		}
-		fmt.Println("    Samples:")
-		for _, sample := range process.Samples {
-			fmt.Println("        ", sample.Name)
-			fmt.Println("             Attributes:")
-			for _, sattr := range sample.Attributes {
-				fmt.Println("               ", sattr.Name, "/", sattr.Value)
-			}
-		}
+	if err := spreadsheet.Display.Apply(processes); err != nil {
+		fmt.Println("Unable to process spreadsheet:", err)
 	}
 }
