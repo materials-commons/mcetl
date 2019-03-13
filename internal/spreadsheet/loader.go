@@ -31,30 +31,6 @@ func Load(path string) ([]*model.Process, error) {
 	return processes, savedErr
 }
 
-type rowProcessor struct {
-	process *model.Process
-
-	// Sample attributes start at column 4 or greater. Remember the format is:
-	// |sample|parent sample|<blank>|sample attr
-	// That is there must be a blank column before sample attributes start. The
-	// column that this starts can be greater than 4 if there are process attributes.
-	// For example the following example would have startingSampleAttrsCol = 6
-	//      1        2             3           4         5   6
-	//   |sample|parent sample|process attr|process attr||sample attr
-	// where 5 is our blank column
-	startingSampleAttrsCol int
-}
-
-func newRowProcessor(processName string, index int) *rowProcessor {
-	return &rowProcessor{
-		process: &model.Process{
-			Name:  processName,
-			Index: index,
-		},
-		startingSampleAttrsCol: 4,
-	}
-}
-
 // loadWorksheet will load the given worksheet into the model.Process data structure. The spreadsheet
 // must have the follow format:
 //   1st row is composed of headers as follows:
@@ -84,6 +60,30 @@ func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model
 	}
 
 	return rowProcessor.process, nil
+}
+
+type rowProcessor struct {
+	process *model.Process
+
+	// Sample attributes start at column 4 or greater. Remember the format is:
+	// |sample|parent sample|<blank>|sample attr
+	// That is there must be a blank column before sample attributes start. The
+	// column that this starts can be greater than 4 if there are process attributes.
+	// For example the following example would have startingSampleAttrsCol = 6
+	//      1        2             3           4         5   6
+	//   |sample|parent sample|process attr|process attr||sample attr
+	// where 5 is our blank column
+	startingSampleAttrsCol int
+}
+
+func newRowProcessor(processName string, index int) *rowProcessor {
+	return &rowProcessor{
+		process: &model.Process{
+			Name:  processName,
+			Index: index,
+		},
+		startingSampleAttrsCol: 4,
+	}
 }
 
 // processHeaderRow processes the first row in the spreadsheet. This row is the header row and contains
@@ -177,21 +177,23 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) {
 	for _, colCell := range row.Columns() {
 		column++
 		if column == 1 {
+			// Sample
 			currentSample = model.NewSample(colCell, rowIndex)
 			r.process.AddSample(currentSample)
-			// Sample
 		} else if column == 2 {
 			// parent sample
 			currentSample.Parent = colCell
 		} else if colCell == "" && inProcessAttrs {
+			// Blank column - switch from process attributes to sample attributes
 			inProcessAttrs = false
 		} else if inProcessAttrs {
+			// No blank column seed so still reading process attributes
 			attr := r.process.Attributes[column-3]
 			processAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
 			processAttr.Value = fmt.Sprintf("{value: %s}", colCell)
 			currentSample.AddProcessAttribute(processAttr)
 		} else {
-			// in sample attrs
+			// saw a blank column so now reading sample attributes
 			attr := r.process.SampleAttrs[column-r.startingSampleAttrsCol]
 			sampleAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
 			sampleAttr.Value = fmt.Sprintf("{value: %s}", colCell)
