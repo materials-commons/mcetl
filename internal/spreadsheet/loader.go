@@ -137,19 +137,19 @@ func cell2NameAndUnit(cell string) (name, unit string) {
 	}
 
 	// If we are here then there is a unit. There are two situations, either the user has a closing
-	// parent ')' or they don't. We treat a missing closing paren as a correctable problem by just taking
+	// paren ')' or they don't. We treat a missing closing paren as a correctable problem by just taking
 	// everything after the open '(' to the end of the string as the unit if this occurs. Otherwise we
 	// take the value between the parens.
 	// Example of parsing
-	// cell := "abc(c)"
+	// cell := "abc(u)"
 	// indexOpeningParen := strings.Index(str, "(")
 	// indexClosingParen := strings.Index(str, ")")
 	// fmt.Println(str[:indexOpeningParen]) => abc
-	// fmt.Println(str[indexOpeningParen+1:indexClosingParen]) => c
+	// fmt.Println(str[indexOpeningParen+1:indexClosingParen]) => u
 	//
-	// cell = "abcd(c"
+	// cell = "abcd(u"
 	// indexOpeningParen = strings.Index(str2, "(")
-	// fmt.Println(str2[indexOpeningParen+1:]) => c
+	// fmt.Println(str2[indexOpeningParen+1:]) => u
 
 	switch {
 	case indexClosingParen != -1:
