@@ -81,6 +81,8 @@ func (p *Process) AddAttribute(attribute *Attribute) {
 	p.Attributes = append(p.Attributes, attribute)
 }
 
+/////////////////////////////////////////////////////////////////
+
 type Sample struct {
 	Name         string
 	Parent       string
@@ -103,6 +105,8 @@ func NewSample(name string, row int) *Sample {
 		Row:  row,
 	}
 }
+
+/////////////////////////////////////////////////////////////////
 
 type Attribute struct {
 	Name   string
