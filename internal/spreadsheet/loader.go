@@ -45,20 +45,24 @@ func Load(path string) ([]*model.Process, error) {
 //    This example has 1 process attribute and 2 sample attributes
 //         |sample|parent sample|process attr1(unit)||sample attr1(unit)|sample attr2(unit)|
 func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model.Process, error) {
-	rowProcessor := newRowProcessor(worksheetName, index)
 	rows, err := xlsx.Rows(worksheetName)
 	if err != nil {
-		return rowProcessor.process, err
+		return nil, err
 	}
 
+	rowProcessor := newRowProcessor(worksheetName, index)
 	row := 0
+
+	// Process header row
+	if rows.Next() {
+		row++
+		rowProcessor.processHeaderRow(rows)
+	}
+
+	// Loop through the rest of the rows processing the samples
 	for rows.Next() {
 		row++
-		if row == 1 {
-			rowProcessor.processHeaderRow(rows)
-		} else {
-			rowProcessor.processSampleRow(rows, row)
-		}
+		rowProcessor.processSampleRow(rows, row)
 	}
 
 	return rowProcessor.process, nil
