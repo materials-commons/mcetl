@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/go-multierror"
+
 	"github.com/360EntSecGroup-Skylar/excelize"
 
 	"github.com/materials-commons/mcetl/internal/spreadsheet/model"
@@ -20,17 +22,17 @@ func Load(path string) ([]*model.Process, error) {
 		return processes, err
 	}
 
-	var savedErr error
+	var savedErrs *multierror.Error
 	for index, name := range xlsx.GetSheetMap() {
 		process, err := loadWorksheet(xlsx, name, index)
 		if err != nil {
-			savedErr = err
+			savedErrs = multierror.Append(savedErrs, err)
 			continue
 		}
 		processes = append(processes, process)
 	}
 
-	return processes, savedErr
+	return processes, savedErrs.ErrorOrNil()
 }
 
 // loadWorksheet will load the given worksheet into the model.Process data structure. The spreadsheet

@@ -35,3 +35,7 @@
 [[constraint]]
   name = "github.com/360EntSecGroup-Skylar/excelize"
   version = "1.4.1"
+
+[[constraint]]
+  name = "github.com/hashicorp/go-multierror"
+  version = "1.0.0"
