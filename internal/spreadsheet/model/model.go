@@ -80,3 +80,42 @@ func (p *Process) AddSampleAttr(attribute *Attribute) {
 func (p *Process) AddAttribute(attribute *Attribute) {
 	p.Attributes = append(p.Attributes, attribute)
 }
+
+type Sample struct {
+	Name         string
+	Parent       string
+	Row          int
+	Attributes   []*Attribute
+	ProcessAttrs []*Attribute
+}
+
+func (s *Sample) AddAttribute(attribute *Attribute) {
+	s.Attributes = append(s.Attributes, attribute)
+}
+
+func (s *Sample) AddProcessAttribute(attribute *Attribute) {
+	s.ProcessAttrs = append(s.ProcessAttrs, attribute)
+}
+
+func NewSample(name string, row int) *Sample {
+	return &Sample{
+		Name: name,
+		Row:  row,
+	}
+}
+
+type Attribute struct {
+	Name   string
+	Unit   string
+	Column int
+	//Value  map[string]interface{}
+	Value string
+}
+
+func NewAttribute(name, unit string, column int) *Attribute {
+	return &Attribute{
+		Name:   name,
+		Unit:   unit,
+		Column: column,
+	}
+}
