@@ -28,9 +28,9 @@ package model
 // first blank header column. This worksheet has the name "Heat Treatment".
 //     sample   parent   proc att    proc att        sample att      sample att
 //   |Name   |Parent   |Time(s)   |Temperature(c)| |Grain Size(mm)|Composition(at%)|
-//   |S1     |         | 300      |400           | | 2mm          |mg 20           |
-//   |S2     |         |          |              | | 1mm          |mg 19.8         |
-//   |S3     |         | 500      |50            | | 1mm          |al 30           |
+//   |S1     |         | 300      |400           | | 2            |mg 20           |
+//   |S2     |         |          |              | | 1            |mg 19.8         |
+//   |S3     |         | 500      |50            | | 1            |al 30           |
 //
 // Here we have 3 samples. Samples S1 and S2 will share the same process because S1 will
 // create a new process, and S2 will use that process because its process attributes
@@ -38,7 +38,29 @@ package model
 // create a new process with new Time and Temperature process attributes.
 //
 // After this is parsed the data structure will look as follows:
+//     struct Process {
+//          Name: "Heat Treatment"
+//          Index: 1 // Index of Worksheet
+//          Attributes: [{Name: "Time", Unit: "s"},{Name:"Temperature", Unit: "c"}]
+//          SampleAttrs: [{Name: "Grain Size", Unit: "mm"}, {Name: "Composition": Unit: "at%"}]
+//          Samples: [
+//              {
+//                   Name: "S1",
+//                   ProcessAttrs: [{Name: "Time", Value: 300, Unit: "s"}, {Name: "Temperature", Value: 400, Unit:"c"}],
+//                   Attributes: [{Name: "Grain Size", Value: 2, Unit: "mm"}, {Name: "Composition", Value: "mg 20", Unit: "at%"}]
+//              },
+//                   Name: "S2",
+//                   ProcessAttrs: [{Name: "Time", Value: "", Unit: "s"}, {Name: "Temperature", Value: "", Unit:"c"}],
+//                   Attributes: [{Name: "Grain Size", Value: 1, Unit: "mm"}, {Name: "Composition", Value: "mg 19.8", Unit: "at%"}]
+//              },
+//              {
+//                   Name: "S3",
+//                   ProcessAttrs: [{Name: "Time", Value: 500, Unit: "s"}, {Name: "Temperature", Value: 50, Unit:"c"}],
+//                   Attributes: [{Name: "Grain Size", Value: 1, Unit: "mm"}, {Name: "Composition", Value: "al 30", Unit: "at%"}]
+//              },
 //
+// Because S2 Process Attrs are all blank it will be associated with the process created from S1. However S3 has values in
+// ProcessAttrs so it will create a new process and the sample will be associated with it.
 type Process struct {
 	Name        string
 	Index       int
