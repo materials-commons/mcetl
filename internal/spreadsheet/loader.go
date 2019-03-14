@@ -10,7 +10,9 @@ import (
 )
 
 // Load will load the given excel file. This assumes that each process is in a separate
-// worksheet and the process will take on the name of the worksheet.
+// worksheet and the process will take on the name of the worksheet. The way that Load
+// works is it transforms the spreadsheet into a data structure that can be more easily
+// understood and worked with. This is encompassed in the model.Process data structure.
 func Load(path string) ([]*model.Process, error) {
 	var processes []*model.Process
 	xlsx, err := excelize.OpenFile(path)
