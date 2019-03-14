@@ -55,13 +55,15 @@ func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model
 	rowProcessor := newRowProcessor(worksheetName, index)
 	row := 0
 
-	// Process header row
+	// First row is the header row that contains all the attributes, process this first
+	// so that we don't have to special case the loop to check for the first row each time
 	if rows.Next() {
 		row++
 		rowProcessor.processHeaderRow(rows)
 	}
 
-	// Loop through the rest of the rows processing the samples
+	// Loop through the rest of the rows processing the samples, sample attributes and process
+	// attributes associated with a sample
 	for rows.Next() {
 		row++
 		rowProcessor.processSampleRow(rows, row)
@@ -130,6 +132,11 @@ func (r *rowProcessor) processHeaderRow(row *excelize.Rows) {
 	}
 }
 
+// cell2NameAndUnit takes a string of the form name(unit), where the (unit) part is optional,
+// splits it up and returns the name and unit. Examples:
+//   temperature(c) => temperature, c
+//   quadrant       => quadrant, ""
+//   length(m       => length, m   // As a special case handles units specified without a closing paren
 func cell2NameAndUnit(cell string) (name, unit string) {
 	name = ""
 	unit = ""
