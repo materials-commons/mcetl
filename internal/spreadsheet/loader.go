@@ -194,7 +194,9 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) {
 			// No blank column seed so still reading process attributes
 			attr := r.process.Attributes[column-3]
 			processAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
-			processAttr.Value = fmt.Sprintf("{value: %s}", colCell)
+			if colCell != "" {
+				processAttr.Value = fmt.Sprintf("{value: %s}", colCell)
+			}
 			currentSample.AddProcessAttribute(processAttr)
 		} else {
 			// saw a blank column so now reading sample attributes

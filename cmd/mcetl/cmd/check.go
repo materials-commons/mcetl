@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/materials-commons/mcetl/internal/spreadsheet"
 	"github.com/spf13/cobra"
 )
 
@@ -26,21 +27,28 @@ var checkCmd = &cobra.Command{
 	Short: "Checks the given spreadsheet(s) for errors and reports the errors. No ETL is performed.",
 	Long: `The check command validates the given spreadsheets and reports any errors. It will not perform
 any ETL operations on the spreadsheets.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("check called")
-	},
+	Run: cliCmdCheck,
 }
 
 func init() {
 	rootCmd.AddCommand(checkCmd)
+	checkCmd.Flags().StringP("file", "f", "", "Path to the excel spreadsheet")
+}
 
-	// Here you will define your flags and configuration settings.
+func cliCmdCheck(cmd *cobra.Command, args []string) {
+	file, err := cmd.Flags().GetString("file")
+	if err != nil {
+		fmt.Print("error", err)
+		return
+	}
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// checkCmd.PersistentFlags().String("foo", "", "A help for foo")
+	processes, err := spreadsheet.Load(file)
+	if err != nil {
+		fmt.Println("Loading spreadsheet failed:", err)
+		return
+	}
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// checkCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	if err := spreadsheet.Display.Apply(processes); err != nil {
+		fmt.Println("Unable to process spreadsheet:", err)
+	}
 }

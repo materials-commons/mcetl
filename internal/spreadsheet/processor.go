@@ -10,3 +10,7 @@ type Processor interface {
 }
 
 var Display = processor.NewDisplayer()
+
+func Create(projectID, name string) *processor.Creater {
+	return processor.NewCreater(projectID, name, "")
+}

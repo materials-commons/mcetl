@@ -14,6 +14,12 @@
   version = "v1.4.7"
 
 [[projects]]
+  name = "github.com/hashicorp/go-uuid"
+  packages = ["."]
+  revision = "4f571afc59f3043a65f8fe6bf46d887b10a01d43"
+  version = "v1.0.1"
+
+[[projects]]
   name = "github.com/hashicorp/hcl"
   packages = [
     ".",
@@ -133,6 +139,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "80282d3861b71bfde4ace3602a6bebb15d4788ad46786b607a273c493d5c90dd"
+  inputs-digest = "5be132795c338dcb5498db472ef816c2a85490cbabfce4106cb8ff0f95a68f04"
   solver-name = "gps-cdcl"
   solver-version = 1
