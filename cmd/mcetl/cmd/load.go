@@ -3,6 +3,8 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/hashicorp/go-multierror"
+
 	"github.com/materials-commons/mcetl/internal/spreadsheet"
 
 	"github.com/spf13/cobra"
@@ -45,7 +47,13 @@ func cliCmdLoad(cmd *cobra.Command, args []string) {
 
 	processes, err := spreadsheet.Load(file)
 	if err != nil {
-		fmt.Println("Loading spreadsheet failed:", err)
+		fmt.Println("Loading spreadsheet failed")
+		if merr, ok := err.(*multierror.Error); ok {
+			for _, e := range merr.Errors {
+				fmt.Println(" ", e)
+			}
+		}
+
 		return
 	}
 

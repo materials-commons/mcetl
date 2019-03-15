@@ -32,6 +32,10 @@ func Load(path string) ([]*model.Process, error) {
 		processes = append(processes, process)
 	}
 
+	if err := validateParents(processes); err != nil {
+		savedErrs = multierror.Append(savedErrs, err)
+	}
+
 	return processes, savedErrs.ErrorOrNil()
 }
 
@@ -132,6 +136,49 @@ func (r *rowProcessor) processHeaderRow(row *excelize.Rows) {
 	}
 }
 
+// processSampleRow processes a row that has a sample on it. This row has the same format as above
+// except that now it is reading values for attributes as opposed to attribute names. These values
+// can be arbitrary strings. They will be turned into JSON strings that look like {value: column},
+// For example:
+//   cell: [0,1,2,3], becomes the string: {value: [0,1,2,3]}
+//   cell: {edge: 1, angle: 2}, becomes the string; {value: {edge: 1, angle: 2}}
+// The reason for the conversion is that these cell values will be stored in the database a JSON objects
+// with a top level value key.
+func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) {
+	column := 0
+	inProcessAttrs := true
+	var currentSample *model.Sample = nil
+
+	for _, colCell := range row.Columns() {
+		column++
+		if column == 1 {
+			// Sample
+			currentSample = model.NewSample(colCell, rowIndex)
+			r.process.AddSample(currentSample)
+		} else if column == 2 {
+			// parent sample
+			currentSample.Parent = colCell
+		} else if colCell == "" && inProcessAttrs {
+			// Blank column - switch from process attributes to sample attributes
+			inProcessAttrs = false
+		} else if inProcessAttrs {
+			// No blank column seed so still reading process attributes
+			attr := r.process.Attributes[column-3]
+			processAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
+			if colCell != "" {
+				processAttr.Value = fmt.Sprintf("{value: %s}", colCell)
+			}
+			currentSample.AddProcessAttribute(processAttr)
+		} else {
+			// saw a blank column so now reading sample attributes
+			attr := r.process.SampleAttrs[column-r.startingSampleAttrsCol]
+			sampleAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
+			sampleAttr.Value = fmt.Sprintf("{value: %s}", colCell)
+			currentSample.AddAttribute(sampleAttr)
+		}
+	}
+}
+
 // cell2NameAndUnit takes a string of the form name(unit), where the (unit) part is optional,
 // splits it up and returns the name and unit. Examples:
 //   temperature(c) => temperature, c
@@ -180,45 +227,44 @@ func cell2NameAndUnit(cell string) (name, unit string) {
 	}
 }
 
-// processSampleRow processes a row that has a sample on it. This row has the same format as above
-// except that now it is reading values for attributes as opposed to attribute names. These values
-// can be arbitrary strings. They will be turned into JSON strings that look like {value: column},
-// For example:
-//   cell: [0,1,2,3], becomes the string: {value: [0,1,2,3]}
-//   cell: {edge: 1, angle: 2}, becomes the string; {value: {edge: 1, angle: 2}}
-// The reason for the conversion is that these cell values will be stored in the database a JSON objects
-// with a top level value key.
-func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) {
-	column := 0
-	inProcessAttrs := true
-	var currentSample *model.Sample = nil
-
-	for _, colCell := range row.Columns() {
-		column++
-		if column == 1 {
-			// Sample
-			currentSample = model.NewSample(colCell, rowIndex)
-			r.process.AddSample(currentSample)
-		} else if column == 2 {
-			// parent sample
-			currentSample.Parent = colCell
-		} else if colCell == "" && inProcessAttrs {
-			// Blank column - switch from process attributes to sample attributes
-			inProcessAttrs = false
-		} else if inProcessAttrs {
-			// No blank column seed so still reading process attributes
-			attr := r.process.Attributes[column-3]
-			processAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
-			if colCell != "" {
-				processAttr.Value = fmt.Sprintf("{value: %s}", colCell)
+// validateParents goes through the list of samples and checks each of their
+// Parent attributes. If Parent is not blank then it must contain a reference
+// to a known process. Additionally that process cannot be the current process.
+// This determination is done by name. Remember processes have the name of their
+// worksheet, so we check that a non blank Parent is equal to a known process
+// that isn't the process the sample is in. validateParent returns a multierror
+// containing all the errors encountered.
+func validateParents(processes []*model.Process) error {
+	knownProcesses := createKnownProcessesMap(processes)
+	var foundErrors *multierror.Error
+	for _, process := range processes {
+		for _, sample := range process.Samples {
+			if sample.Parent != "" {
+				switch {
+				case sample.Parent == process.Name:
+					e := fmt.Errorf("process '%s' has Sample '%s' who's parent is the current process", process.Name, sample.Name)
+					foundErrors = multierror.Append(foundErrors, e)
+				default:
+					if _, ok := knownProcesses[sample.Parent]; !ok {
+						// Parent is set to a non-existent process
+						e := fmt.Errorf("sample '%s' in process '%s' has parent '%s' that does not exist",
+							sample.Name, process.Name, sample.Parent)
+						foundErrors = multierror.Append(foundErrors, e)
+					}
+				}
 			}
-			currentSample.AddProcessAttribute(processAttr)
-		} else {
-			// saw a blank column so now reading sample attributes
-			attr := r.process.SampleAttrs[column-r.startingSampleAttrsCol]
-			sampleAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
-			sampleAttr.Value = fmt.Sprintf("{value: %s}", colCell)
-			currentSample.AddAttribute(sampleAttr)
 		}
 	}
+
+	return foundErrors.ErrorOrNil()
+}
+
+// createKnownProcessesMap creates a map of [process.Name] => Process
+func createKnownProcessesMap(processes []*model.Process) map[string]*model.Process {
+	knownProcesses := make(map[string]*model.Process)
+	for _, process := range processes {
+		knownProcesses[process.Name] = process
+	}
+
+	return knownProcesses
 }
