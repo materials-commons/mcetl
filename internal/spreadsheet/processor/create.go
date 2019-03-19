@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-uuid"
+	"github.com/materials-commons/gomcapi"
 	"github.com/materials-commons/mcetl/internal/spreadsheet/model"
 )
 
@@ -12,6 +13,7 @@ type Creater struct {
 	Name         string
 	Description  string
 	ExperimentID string
+	c            *mcapi.Client
 }
 
 func NewCreater(projectID, name, description string) *Creater {
@@ -19,6 +21,7 @@ func NewCreater(projectID, name, description string) *Creater {
 		ProjectID:   projectID,
 		Name:        name,
 		Description: description,
+		c:           mcapi.NewClient(""),
 	}
 }
 
