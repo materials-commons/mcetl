@@ -5,6 +5,8 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 
+	"github.com/materials-commons/config"
+	mcapi "github.com/materials-commons/gomcapi"
 	"github.com/materials-commons/mcetl/internal/spreadsheet"
 
 	"github.com/spf13/cobra"
@@ -57,7 +59,14 @@ func cliCmdLoad(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if err := spreadsheet.Create(projectId, name).Apply(processes); err != nil {
+	mcurl := config.GetString("mcurl")
+	apikey := config.GetString("apikey")
+	fmt.Println("mcurl", mcurl)
+	fmt.Println("apikey", apikey)
+	client := mcapi.NewClient(mcurl)
+	client.APIKey = apikey
+
+	if err := spreadsheet.Create(projectId, name, client).Apply(processes); err != nil {
 		fmt.Println("Unable to process spreadsheet:", err)
 	}
 }

@@ -1,6 +1,7 @@
 package spreadsheet
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -110,6 +111,7 @@ func (r *rowProcessor) processHeaderRow(row *excelize.Rows) {
 	column := 0
 	inProcessAttrs := true
 	for _, colCell := range row.Columns() {
+		colCell = strings.TrimSpace(colCell)
 		column++
 		if column < 3 {
 			// column one is sample name
@@ -150,6 +152,7 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) {
 	var currentSample *model.Sample = nil
 
 	for _, colCell := range row.Columns() {
+		colCell = strings.TrimSpace(colCell)
 		column++
 		if column == 1 {
 			// Sample
@@ -166,14 +169,25 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) {
 			attr := r.process.Attributes[column-3]
 			processAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
 			if colCell != "" {
-				processAttr.Value = fmt.Sprintf("{value: %s}", colCell)
+				fmt.Println("process attribute", colCell)
+				val := make(map[string]interface{})
+				if err := json.Unmarshal([]byte(fmt.Sprintf(`{"value": %s}`, colCell)), &val); err == nil {
+					processAttr.Value = val
+				} else {
+					fmt.Println("  json.Unmarshal returned error:", err)
+				}
 			}
 			currentSample.AddProcessAttribute(processAttr)
 		} else {
 			// saw a blank column so now reading sample attributes
 			attr := r.process.SampleAttrs[column-r.startingSampleAttrsCol]
 			sampleAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
-			sampleAttr.Value = fmt.Sprintf("{value: %s}", colCell)
+			if colCell != "" {
+				val := make(map[string]interface{})
+				if err := json.Unmarshal([]byte(fmt.Sprintf("{value: %s}", colCell)), val); err == nil {
+					sampleAttr.Value = val
+				}
+			}
 			currentSample.AddAttribute(sampleAttr)
 		}
 	}
@@ -202,16 +216,16 @@ func cell2NameAndUnit(cell string) (name, unit string) {
 	// paren ')' or they don't. We treat a missing closing paren as a correctable problem by just taking
 	// everything after the open '(' to the end of the string as the unit if this occurs. Otherwise we
 	// take the value between the parens.
-	// Example of parsing
-	// cell := "abc(u)"
-	// indexOpeningParen := strings.Index(str, "(")
-	// indexClosingParen := strings.Index(str, ")")
-	// fmt.Println(str[:indexOpeningParen]) => abc
-	// fmt.Println(str[indexOpeningParen+1:indexClosingParen]) => u
+	// Examples of parsing
+	//   cell := "abc(u)"
+	//   indexOpeningParen := strings.Index(str, "(")
+	//   indexClosingParen := strings.Index(str, ")")
+	//   fmt.Println(str[:indexOpeningParen]) => abc
+	//   fmt.Println(str[indexOpeningParen+1:indexClosingParen]) => u
 	//
-	// cell = "abcd(u"
-	// indexOpeningParen = strings.Index(str2, "(")
-	// fmt.Println(str2[indexOpeningParen+1:]) => u
+	//   cell = "abcd(u"
+	//   indexOpeningParen = strings.Index(str2, "(")
+	//   fmt.Println(str2[indexOpeningParen+1:]) => u
 
 	switch {
 	case indexClosingParen != -1:

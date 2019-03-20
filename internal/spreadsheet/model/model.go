@@ -112,8 +112,7 @@ type Attribute struct {
 	Name   string
 	Unit   string
 	Column int
-	//Value  map[string]interface{}
-	Value string
+	Value  map[string]interface{}
 }
 
 func NewAttribute(name, unit string, column int) *Attribute {

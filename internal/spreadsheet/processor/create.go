@@ -13,15 +13,15 @@ type Creater struct {
 	Name         string
 	Description  string
 	ExperimentID string
-	c            *mcapi.Client
+	client       *mcapi.Client
 }
 
-func NewCreater(projectID, name, description string) *Creater {
+func NewCreater(projectID, name, description string, client *mcapi.Client) *Creater {
 	return &Creater{
 		ProjectID:   projectID,
 		Name:        name,
 		Description: description,
-		c:           mcapi.NewClient(""),
+		client:      client,
 	}
 }
 
@@ -39,11 +39,13 @@ func (c *Creater) Apply(processes []*model.Process) error {
 }
 
 func (c *Creater) createExperiment() error {
-	var err error
 	fmt.Printf("Creating Experiment: %s\n", c.Name)
-	if c.ExperimentID, err = uuid.GenerateUUID(); err != nil {
+	experiment, err := c.client.CreateExperiment(c.ProjectID, c.Name, c.Description)
+	if err != nil {
 		return err
 	}
+
+	c.ExperimentID = experiment.ID
 	return nil
 }
 
@@ -76,6 +78,23 @@ func (c *Creater) addProcessToExperiment(process *model.Process) error {
 
 func (c *Creater) createProcessWithAttrs(process *model.Process, attrs []*model.Attribute) (string, error) {
 	fmt.Printf("%sCreating Process %s, in experiment %s with sample process attributes\n", spaces(4), process.Name, c.ExperimentID)
+	setup := mcapi.Setup{
+		Name:      "Test",
+		Attribute: "test",
+	}
+	for _, attr := range attrs {
+		if attr.Value != nil {
+			p := mcapi.SetupProperty{
+				Name:      attr.Name,
+				Attribute: attr.Name,
+				OType:     "object",
+				Unit:      attr.Unit,
+				Value:     attr.Value,
+			}
+			setup.Properties = append(setup.Properties, &p)
+		}
+	}
+	c.client.CreateProcess(c.ProjectID, c.ExperimentID, process.Name, []mcapi.Setup{setup})
 	id, err := uuid.GenerateUUID()
 	return id, err
 }
@@ -85,7 +104,7 @@ func (c *Creater) createProcessWithAttrs(process *model.Process, attrs []*model.
 // a new process needs to be created.
 func needsNewProcess(sample *model.Sample) bool {
 	for _, attr := range sample.ProcessAttrs {
-		if attr.Value != "" {
+		if attr.Value != nil {
 			return true
 		}
 	}
