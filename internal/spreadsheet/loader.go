@@ -40,32 +40,32 @@ var FileAttributeKeywords = map[string]bool{
 // Load will load the given excel file. This assumes that each process is in a separate
 // worksheet and the process will take on the name of the worksheet. The way that Load
 // works is it transforms the spreadsheet into a data structure that can be more easily
-// understood and worked with. This is encompassed in the model.Process data structure.
-func Load(path string) ([]*model.Process, error) {
-	var processes []*model.Process
+// understood and worked with. This is encompassed in the model.Worksheet data structure.
+func Load(path string) ([]*model.Worksheet, error) {
+	var worksheets []*model.Worksheet
 	xlsx, err := excelize.OpenFile(path)
 	if err != nil {
-		return processes, err
+		return worksheets, err
 	}
 
 	var savedErrs *multierror.Error
 	for index, name := range xlsx.GetSheetMap() {
-		process, err := loadWorksheet(xlsx, name, index)
+		worksheet, err := loadWorksheet(xlsx, name, index)
 		if err != nil {
 			savedErrs = multierror.Append(savedErrs, err)
 			continue
 		}
-		processes = append(processes, process)
+		worksheets = append(worksheets, worksheet)
 	}
 
-	if err := validateParents(processes); err != nil {
+	if err := validateParents(worksheets); err != nil {
 		savedErrs = multierror.Append(savedErrs, err)
 	}
 
-	return processes, savedErrs.ErrorOrNil()
+	return worksheets, savedErrs.ErrorOrNil()
 }
 
-// loadWorksheet will load the given worksheet into the model.Process data structure. The spreadsheet
+// loadWorksheet will load the given worksheet into the model.Worksheet data structure. The spreadsheet
 // must have the follow format:
 //   1st row is composed of headers as follows:
 //     |sample|parent process for sample|keyword attribute columns|
@@ -79,7 +79,7 @@ func Load(path string) ([]*model.Process, error) {
 //
 // Keywords are stored in the file level variables SampleAttributeKeywords, ProcessAttributeKeywords
 // and FileAttributeKeywords
-func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model.Process, error) {
+func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model.Worksheet, error) {
 	rows, err := xlsx.Rows(worksheetName)
 	if err != nil {
 		return nil, err
@@ -102,17 +102,17 @@ func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model
 		rowProcessor.processSampleRow(rows, row)
 	}
 
-	return rowProcessor.process, nil
+	return rowProcessor.worksheet, nil
 }
 
 type rowProcessor struct {
-	process    *model.Process
+	worksheet  *model.Worksheet
 	columnType map[int]ColumnAttribute
 }
 
 func newRowProcessor(processName string, index int) *rowProcessor {
 	return &rowProcessor{
-		process: &model.Process{
+		worksheet: &model.Worksheet{
 			Name:  processName,
 			Index: index,
 		},
@@ -138,12 +138,12 @@ func (r *rowProcessor) processHeaderRow(row *excelize.Rows) {
 			name, unit := cell2NameAndUnit(colCell)
 			attr := model.NewAttribute(name, unit, column)
 			r.columnType[column] = ProcessAttributeColumn
-			r.process.AddAttribute(attr)
+			r.worksheet.AddProcessAttr(attr)
 		} else if isSampleAttributeHeader(colCell) {
 			name, unit := cell2NameAndUnit(colCell)
 			attr := model.NewAttribute(name, unit, column)
 			r.columnType[column] = SampleAttributeColumn
-			r.process.AddSampleAttr(attr)
+			r.worksheet.AddSampleAttr(attr)
 		} else if isFileAttributeHeader(colCell) {
 			// ignore for the moment
 			r.columnType[column] = FileAttributeColumn
@@ -193,19 +193,30 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) {
 		if column == 1 {
 			// Sample
 			currentSample = model.NewSample(colCell, rowIndex)
-			r.process.AddSample(currentSample)
+			r.worksheet.AddSample(currentSample)
 		} else if column == 2 {
-			// parent sample
+			// parent worksheet
 			currentSample.Parent = colCell
 		} else {
+			// Column 1 is sample, column 2 is parent worksheet.
+			// All the other columns are attributes. At this point the header row has been processed (in processHeaderRow()).
+			// The rowProcessor identified each of the header columns by their type (process, sample or file attribute). As
+			// we walk through the columns that make up a row we refer back to the rowProcessor columnType which will tell
+			// us which type of attribute we are looking.
 			colType, ok := r.columnType[column]
 			switch {
-			case !ok: // Couldn't find column type
+			case !ok:
+				// Couldn't find column type. This should never happen. Just ignore it for now.
 				continue
+
 			case colType == SampleAttributeColumn:
-				attr := findAttr(r.process.SampleAttrs, column)
+				// This column is a sample attribute. Look up the given header information (stored in the
+				// worksheet.SampleAttrs) so that we know which attribute we are looking at for this cell.
+				attr := findAttr(r.worksheet.SampleAttrs, column)
 				sampleAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
 				if colCell != "" {
+					// Cell is not blank so we need to turn the cell value in json string then from their into
+					// a map of its values.
 					val := make(map[string]interface{})
 					if err := json.Unmarshal([]byte(fmt.Sprintf(`{"value": "%s"}`, colCell)), &val); err == nil {
 						sampleAttr.Value = val
@@ -215,9 +226,12 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) {
 				}
 				currentSample.AddAttribute(sampleAttr)
 			case colType == ProcessAttributeColumn:
-				attr := findAttr(r.process.Attributes, column)
+				// This column is a process attribute. As above look up the header so we know the attribute
+				// associated with this cell.
+				attr := findAttr(r.worksheet.ProcessAttrs, column)
 				processAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
 				if colCell != "" {
+					// Convert into a map from json.
 					val := make(map[string]interface{})
 					if err := json.Unmarshal([]byte(fmt.Sprintf(`{"value": "%s"}`, colCell)), &val); err == nil {
 						processAttr.Value = val
@@ -227,11 +241,15 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) {
 				}
 				currentSample.AddProcessAttribute(processAttr)
 			case colType == FileAttributeColumn:
+				// Not yet doing anything with his attribute type
 			}
 		}
 	}
 }
 
+// findAttr will look up the attribute in the given list of attributes. These attributes were built
+// during the header processing. Each attribute has a column it is associated with and we can use that
+// to find the given attribute in the header.
 func findAttr(attributes []*model.Attribute, column int) *model.Attribute {
 	for _, attr := range attributes {
 		if attr.Column == column {
@@ -309,7 +327,7 @@ func cell2NameAndUnit(cell string) (name, unit string) {
 // worksheet, so we check that a non blank Parent is equal to a known process
 // that isn't the process the sample is in. validateParent returns a multierror
 // containing all the errors encountered.
-func validateParents(processes []*model.Process) error {
+func validateParents(processes []*model.Worksheet) error {
 	knownProcesses := createKnownProcessesMap(processes)
 	var foundErrors *multierror.Error
 	for _, process := range processes {
@@ -334,9 +352,9 @@ func validateParents(processes []*model.Process) error {
 	return foundErrors.ErrorOrNil()
 }
 
-// createKnownProcessesMap creates a map of [process.Name] => Process
-func createKnownProcessesMap(processes []*model.Process) map[string]*model.Process {
-	knownProcesses := make(map[string]*model.Process)
+// createKnownProcessesMap creates a map of [process.Name] => Worksheet
+func createKnownProcessesMap(processes []*model.Worksheet) map[string]*model.Worksheet {
+	knownProcesses := make(map[string]*model.Worksheet)
 	for _, process := range processes {
 		knownProcesses[process.Name] = process
 	}

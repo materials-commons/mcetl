@@ -1,6 +1,6 @@
 package model
 
-// Process represents a single worksheet in excel. Each worksheet
+// Worksheet represents a single worksheet in excel. Each worksheet
 // specifies a process template and the samples. Since the worksheet
 // is a model for the process that means that multiple processes
 // can come from that single worksheet. Each "process" from the
@@ -39,7 +39,7 @@ package model
 // process with new Time and Temperature process attributes.
 //
 // After this is parsed the data structure will look as follows:
-//     struct Process {
+//     struct Worksheet {
 //          Name: "Heat Treatment"
 //          Index: 1 // Index of Worksheet
 //          Attributes: [{Name: "Time", Unit: "s"},{Name:"Temperature", Unit: "c"}]
@@ -60,26 +60,26 @@ package model
 //                   Attributes: [{Name: "Grain Size", Value: 1, Unit: "mm"}, {Name: "Composition", Value: "al 30", Unit: "at%"}]
 //              },
 //
-// Because S2 Process Attrs are the same as the last created process it will be associated with the process created from S1.
+// Because S2 Worksheet Attrs are the same as the last created process it will be associated with the process created from S1.
 // However S3 has different values in ProcessAttrs so it will create a new process and the sample will be associated with it.
-type Process struct {
-	Name        string
-	Index       int
-	Attributes  []*Attribute
-	Samples     []*Sample
-	SampleAttrs []*Attribute
+type Worksheet struct {
+	Name         string
+	Index        int
+	ProcessAttrs []*Attribute
+	Samples      []*Sample
+	SampleAttrs  []*Attribute
 }
 
-func (p *Process) AddSample(sample *Sample) {
-	p.Samples = append(p.Samples, sample)
+func (w *Worksheet) AddSample(sample *Sample) {
+	w.Samples = append(w.Samples, sample)
 }
 
-func (p *Process) AddSampleAttr(attribute *Attribute) {
-	p.SampleAttrs = append(p.SampleAttrs, attribute)
+func (w *Worksheet) AddSampleAttr(attribute *Attribute) {
+	w.SampleAttrs = append(w.SampleAttrs, attribute)
 }
 
-func (p *Process) AddAttribute(attribute *Attribute) {
-	p.Attributes = append(p.Attributes, attribute)
+func (w *Worksheet) AddProcessAttr(attribute *Attribute) {
+	w.ProcessAttrs = append(w.ProcessAttrs, attribute)
 }
 
 /////////////////////////////////////////////////////////////////

@@ -7,7 +7,7 @@ import (
 )
 
 type Processor interface {
-	Apply(processes []*model.Process) error
+	Apply(processes []*model.Worksheet) error
 }
 
 var Display = processor.NewDisplayer()

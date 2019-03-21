@@ -1,10 +1,16 @@
+// Creater will take the loaded set of processes and create the workflow
+// on the server. It steps through each process entry and then each
+// of the samples for that process. For each sample associated with a top
+// level process it will check to see if a new process should be created.
+// To understand this layout look in the model to see how a process
+// is laid out.
+
 package processor
 
 import (
 	"fmt"
 	"reflect"
 
-	"github.com/hashicorp/go-uuid"
 	"github.com/materials-commons/gomcapi"
 	"github.com/materials-commons/mcetl/internal/spreadsheet/model"
 )
@@ -26,19 +32,21 @@ func NewCreater(projectID, name, description string, client *mcapi.Client) *Crea
 	}
 }
 
-func (c *Creater) Apply(processes []*model.Process) error {
+// Apply creates a new experiment then goes through the list of processes and creates the workflow from them.
+func (c *Creater) Apply(worksheets []*model.Worksheet) error {
 	if err := c.createExperiment(); err != nil {
 		return err
 	}
 
-	for _, process := range processes {
-		if err := c.addProcessToExperiment(process); err != nil {
+	for _, worksheet := range worksheets {
+		if err := c.createWorkfowFromWorksheet(worksheet); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+// createExperiment will create a new experiment in the given project
 func (c *Creater) createExperiment() error {
 	fmt.Printf("Creating Experiment: %s\n", c.Name)
 	experiment, err := c.client.CreateExperiment(c.ProjectID, c.Name, c.Description)
@@ -50,7 +58,10 @@ func (c *Creater) createExperiment() error {
 	return nil
 }
 
-func (c *Creater) addProcessToExperiment(process *model.Process) error {
+// createWorkfowFromWorksheet will take a single worksheet entry that is composed
+// of multiple samples. It will then attempt to create as many processes and samples as
+// are needed from that particular worksheet entry.
+func (c *Creater) createWorkfowFromWorksheet(process *model.Worksheet) error {
 	var (
 		processID               string
 		err                     error
@@ -80,8 +91,8 @@ func (c *Creater) addProcessToExperiment(process *model.Process) error {
 	return nil
 }
 
-func (c *Creater) createProcessWithAttrs(process *model.Process, attrs []*model.Attribute) (string, error) {
-	fmt.Printf("%sCreating Process %s, in experiment %s with sample process attributes\n", spaces(4), process.Name, c.ExperimentID)
+func (c *Creater) createProcessWithAttrs(process *model.Worksheet, attrs []*model.Attribute) (string, error) {
+	fmt.Printf("%sCreating Worksheet %s, in experiment %s with sample process attributes\n", spaces(4), process.Name, c.ExperimentID)
 	setup := mcapi.Setup{
 		Name:      "Test",
 		Attribute: "test",
@@ -98,9 +109,11 @@ func (c *Creater) createProcessWithAttrs(process *model.Process, attrs []*model.
 			setup.Properties = append(setup.Properties, &p)
 		}
 	}
-	c.client.CreateProcess(c.ProjectID, c.ExperimentID, process.Name, []mcapi.Setup{setup})
-	id, err := uuid.GenerateUUID()
-	return id, err
+	proc, err := c.client.CreateProcess(c.ProjectID, c.ExperimentID, process.Name, []mcapi.Setup{setup})
+	if err != nil {
+		return "", err
+	}
+	return proc.ID, nil
 }
 
 // needsNewProcess will look through the process attributes associated with the sample and the
