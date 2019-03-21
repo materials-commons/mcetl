@@ -12,6 +12,31 @@ import (
 	"github.com/materials-commons/mcetl/internal/spreadsheet/model"
 )
 
+type ColumnAttribute int
+
+const (
+	SampleAttributeColumn = iota + 1
+	ProcessAttributeColumn
+	FileAttributeColumn
+)
+
+var SampleAttributeKeywords = map[string]bool{
+	"s":                true,
+	"sample":           true,
+	"sample attribute": true,
+}
+
+var ProcessAttributeKeywords = map[string]bool{
+	"p":       true,
+	"process": true,
+}
+
+var FileAttributeKeywords = map[string]bool{
+	"f":     true,
+	"file":  true,
+	"files": true,
+}
+
 // Load will load the given excel file. This assumes that each process is in a separate
 // worksheet and the process will take on the name of the worksheet. The way that Load
 // works is it transforms the spreadsheet into a data structure that can be more easily
@@ -43,14 +68,17 @@ func Load(path string) ([]*model.Process, error) {
 // loadWorksheet will load the given worksheet into the model.Process data structure. The spreadsheet
 // must have the follow format:
 //   1st row is composed of headers as follows:
-//     |sample|parent sample|optional process attribute columns|<blank>|optional sample attribute columns|
+//     |sample|parent process for sample|keyword attribute columns|
 // Examples:
 //    This example has no process attributes
-//         |sample|parent sample||sample attr1(unit)|sample attr2(unit)|
+//         |sample|parent sample|s:sample attr1(unit)|s:sample attr2(unit)|
 //    This example has process attributes and no sample attributes
-//         |sample|parent sample|process attr1(unit)|process attr2|
+//         |sample|parent sample|p:process attr1(unit)|p:process attr2|
 //    This example has 1 process attribute and 2 sample attributes
-//         |sample|parent sample|process attr1(unit)||sample attr1(unit)|sample attr2(unit)|
+//         |sample|parent sample|p:process attr1(unit)|s:sample attr1(unit)|s:sample attr2(unit)|
+//
+// Keywords are stored in the file level variables SampleAttributeKeywords, ProcessAttributeKeywords
+// and FileAttributeKeywords
 func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model.Process, error) {
 	rows, err := xlsx.Rows(worksheetName)
 	if err != nil {
@@ -78,17 +106,8 @@ func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model
 }
 
 type rowProcessor struct {
-	process *model.Process
-
-	// Sample attributes start at column 4 or greater. Remember the format is:
-	// |sample|parent sample|<blank>|sample attr
-	// That is there must be a blank column before sample attributes start. The
-	// column that this starts can be greater than 4 if there are process attributes.
-	// For example the following example would have startingSampleAttrsCol = 6
-	//      1        2             3           4         5   6
-	//   |sample|parent sample|process attr|process attr||sample attr
-	// where 5 is our blank column
-	startingSampleAttrsCol int
+	process    *model.Process
+	columnType map[int]ColumnAttribute
 }
 
 func newRowProcessor(processName string, index int) *rowProcessor {
@@ -97,19 +116,15 @@ func newRowProcessor(processName string, index int) *rowProcessor {
 			Name:  processName,
 			Index: index,
 		},
-		startingSampleAttrsCol: 4,
+		columnType: make(map[int]ColumnAttribute),
 	}
 }
 
 // processHeaderRow processes the first row in the spreadsheet. This row is the header row and contains
-// the names of all the process and sample attributes.
-// Attributes have the following format: name(unit)
-// For example:
-//    temperature(c)   - Attribute name temperature with unit c
-//    quartile         - Attribute quartile with no units
+// the names of all the process, sample and file attributes. The type of an attribute is determined
+// by looking at its keyword prefix.
 func (r *rowProcessor) processHeaderRow(row *excelize.Rows) {
 	column := 0
-	inProcessAttrs := true
 	for _, colCell := range row.Columns() {
 		colCell = strings.TrimSpace(colCell)
 		column++
@@ -119,23 +134,45 @@ func (r *rowProcessor) processHeaderRow(row *excelize.Rows) {
 			continue
 		}
 
-		if colCell == "" && inProcessAttrs {
-			// The first blank column denotes the end of the process attributes, after that we
-			// are processing sample attributes
-			inProcessAttrs = false
-			r.startingSampleAttrsCol = column + 1
-		} else if inProcessAttrs {
-			// We haven't encountered a blank column yet so still reading process attributes
+		if isProcessAttributeHeader(colCell) {
 			name, unit := cell2NameAndUnit(colCell)
 			attr := model.NewAttribute(name, unit, column)
+			r.columnType[column] = ProcessAttributeColumn
 			r.process.AddAttribute(attr)
-		} else {
-			// A blank column was previously encountered so we are reading sample attributes
+		} else if isSampleAttributeHeader(colCell) {
 			name, unit := cell2NameAndUnit(colCell)
 			attr := model.NewAttribute(name, unit, column)
+			r.columnType[column] = SampleAttributeColumn
 			r.process.AddSampleAttr(attr)
+		} else if isFileAttributeHeader(colCell) {
+			// ignore for the moment
+			r.columnType[column] = FileAttributeColumn
 		}
 	}
+}
+
+func isSampleAttributeHeader(cell string) bool {
+	return findIn(cell, SampleAttributeKeywords)
+}
+
+func isProcessAttributeHeader(cell string) bool {
+	return findIn(cell, ProcessAttributeKeywords)
+}
+
+func isFileAttributeHeader(cell string) bool {
+	return findIn(cell, FileAttributeKeywords)
+}
+
+func findIn(cell string, keywords map[string]bool) bool {
+	cell = strings.ToLower(cell)
+	i := strings.Index(cell, ":")
+	if i == -1 {
+		return false
+	}
+
+	keyword := cell[:i]
+	_, ok := keywords[keyword]
+	return ok
 }
 
 // processSampleRow processes a row that has a sample on it. This row has the same format as above
@@ -148,7 +185,6 @@ func (r *rowProcessor) processHeaderRow(row *excelize.Rows) {
 // with a top level value key.
 func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) {
 	column := 0
-	inProcessAttrs := true
 	var currentSample *model.Sample = nil
 
 	for _, colCell := range row.Columns() {
@@ -161,48 +197,73 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) {
 		} else if column == 2 {
 			// parent sample
 			currentSample.Parent = colCell
-		} else if colCell == "" && inProcessAttrs {
-			// Blank column - switch from process attributes to sample attributes
-			inProcessAttrs = false
-		} else if inProcessAttrs {
-			// No blank column seed so still reading process attributes
-			attr := r.process.Attributes[column-3]
-			processAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
-			if colCell != "" {
-				fmt.Println("process attribute", colCell)
-				val := make(map[string]interface{})
-				if err := json.Unmarshal([]byte(fmt.Sprintf(`{"value": %s}`, colCell)), &val); err == nil {
-					processAttr.Value = val
-				} else {
-					fmt.Println("  json.Unmarshal returned error:", err)
-				}
-			}
-			currentSample.AddProcessAttribute(processAttr)
 		} else {
-			// saw a blank column so now reading sample attributes
-			attr := r.process.SampleAttrs[column-r.startingSampleAttrsCol]
-			sampleAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
-			if colCell != "" {
-				val := make(map[string]interface{})
-				if err := json.Unmarshal([]byte(fmt.Sprintf("{value: %s}", colCell)), val); err == nil {
-					sampleAttr.Value = val
+			colType, ok := r.columnType[column]
+			switch {
+			case !ok: // Couldn't find column type
+				continue
+			case colType == SampleAttributeColumn:
+				attr := findAttr(r.process.SampleAttrs, column)
+				sampleAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
+				if colCell != "" {
+					val := make(map[string]interface{})
+					if err := json.Unmarshal([]byte(fmt.Sprintf(`{"value": "%s"}`, colCell)), &val); err == nil {
+						sampleAttr.Value = val
+					} else {
+						fmt.Printf("json.Unmarhal of %s failed: %s\n", colCell, err)
+					}
 				}
+				currentSample.AddAttribute(sampleAttr)
+			case colType == ProcessAttributeColumn:
+				attr := findAttr(r.process.Attributes, column)
+				processAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
+				if colCell != "" {
+					val := make(map[string]interface{})
+					if err := json.Unmarshal([]byte(fmt.Sprintf(`{"value": "%s"}`, colCell)), &val); err == nil {
+						processAttr.Value = val
+					} else {
+						fmt.Printf("json.Unmarhal of %s failed: %s\n", colCell, err)
+					}
+				}
+				currentSample.AddProcessAttribute(processAttr)
+			case colType == FileAttributeColumn:
 			}
-			currentSample.AddAttribute(sampleAttr)
 		}
 	}
 }
 
-// cell2NameAndUnit takes a string of the form name(unit), where the (unit) part is optional,
-// splits it up and returns the name and unit. Examples:
+func findAttr(attributes []*model.Attribute, column int) *model.Attribute {
+	for _, attr := range attributes {
+		if attr.Column == column {
+			return attr
+		}
+	}
+
+	return nil
+}
+
+// cell2NameAndUnit takes a string of the form <keyword:>name(unit), where the (unit) part is optional,
+// splits it up and returns the name and unit. The <keyword:> is optional. Examples:
 //   temperature(c) => temperature, c
 //   quadrant       => quadrant, ""
 //   length(m       => length, m   // As a special case handles units specified without a closing paren
+//   s:length(mm    => length, mm // This entry contains a keyword
 func cell2NameAndUnit(cell string) (name, unit string) {
 	name = ""
 	unit = ""
+
+	// Check for the default case of an empty cell
 	if cell == "" {
 		return name, unit
+	}
+
+	// Handle the case where there is a keyword
+	i := strings.Index(cell, ":")
+	if i != -1 {
+		// Given a string like:
+		//   sample:time(h) => "time(h)"
+		//   sample:  time(h) => "time(h)"
+		cell = strings.TrimSpace(cell[i+1:])
 	}
 
 	indexOpeningParen := strings.Index(cell, "(")
