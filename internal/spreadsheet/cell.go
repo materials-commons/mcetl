@@ -7,6 +7,15 @@ import (
 	"strings"
 )
 
+// cellToJSONMap will take a cell entry which is a string. It looks at the string to determine what type
+// it is and then attempts to turn it into a json string that we can call json.Unmarshal() on in order to
+// create a map of the JSON value. Because the user may not have stored the value in the cell as something
+// we can turn into a particular bit of JSON, as a last resort we will treat it as a string and json.Unmarshal()
+// that. As an example, imagine a cell that has the following in it:
+//  [0,1], [2,3]
+// This has two separate values and there isn't any easy way to determine what they are. Unmarshal will fail unless
+// treat this as a string. Doing this still allows us to store the value in the database, and the user can see that
+// value. Its just not represented as an object of arrays.
 func cellToJSONMap(cell string) map[string]interface{} {
 	switch {
 	case strings.HasPrefix(cell, "{") && strings.HasSuffix(cell, "}"):
@@ -16,7 +25,8 @@ func cellToJSONMap(cell string) map[string]interface{} {
 		// array
 		return cellToArray(cell)
 	case strings.Contains(cell, ".") && strings.Count(cell, ".") == 1:
-		// attempt to parse as float, if that fails store as string
+		// float
+		return cellToFloat(cell)
 	case isNumeric(cell):
 		// int
 		return cellToInt(cell)
@@ -27,7 +37,6 @@ func cellToJSONMap(cell string) map[string]interface{} {
 		// Store as string
 		return cellToString(cell)
 	}
-	return nil
 }
 
 // intVal stores the value that isNumeric received from ParseInt. This
@@ -52,7 +61,7 @@ func isBool(str string) bool {
 	return err != nil
 }
 
-// cellToObject returns the value as a JSON object.
+// cellToObject returns the value as a JSON object, if that fails return as a string.
 func cellToObject(cell string) map[string]interface{} {
 	val := make(map[string]interface{})
 	if err := json.Unmarshal([]byte(fmt.Sprintf(`{"value": %s}`, cell)), &val); err != nil {
@@ -62,7 +71,7 @@ func cellToObject(cell string) map[string]interface{} {
 }
 
 // cellToArray returns an array value. Underneath it just calls cellToObject since the logic
-// is the same. There isn't any special formatting that needs to be done on the cell string.
+// is the same. There isn't any special formatting that needs to be done on the cell.
 func cellToArray(cell string) map[string]interface{} {
 	return cellToObject(cell)
 }
@@ -85,7 +94,7 @@ func cellToFloat(cell string) map[string]interface{} {
 	return val
 }
 
-// cellToInt returns a JSON value for an int
+// cellToInt returns a JSON value for an int, if that fails return as a string.
 func cellToInt(cell string) map[string]interface{} {
 	val := make(map[string]interface{})
 
@@ -96,7 +105,7 @@ func cellToInt(cell string) map[string]interface{} {
 	return val
 }
 
-// cellToBool returns a JSON value for a bool
+// cellToBool returns a JSON value for a bool, if that fails return as a string.
 func cellToBool(cell string) map[string]interface{} {
 	val := make(map[string]interface{})
 
