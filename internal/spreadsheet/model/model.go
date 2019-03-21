@@ -90,6 +90,11 @@ type Sample struct {
 	Row          int
 	Attributes   []*Attribute
 	ProcessAttrs []*Attribute
+	Files        []File
+}
+
+type File struct {
+	Path string
 }
 
 func (s *Sample) AddAttribute(attribute *Attribute) {
@@ -105,6 +110,10 @@ func NewSample(name string, row int) *Sample {
 		Name: name,
 		Row:  row,
 	}
+}
+
+func (s *Sample) AddFile(file File) {
+	s.Files = append(s.Files, file)
 }
 
 /////////////////////////////////////////////////////////////////
