@@ -2,6 +2,7 @@ package processor
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/hashicorp/go-uuid"
 	"github.com/materials-commons/gomcapi"
@@ -51,8 +52,9 @@ func (c *Creater) createExperiment() error {
 
 func (c *Creater) addProcessToExperiment(process *model.Process) error {
 	var (
-		processID string
-		err       error
+		processID               string
+		err                     error
+		lastCreatedProcessAttrs []*model.Attribute
 	)
 
 	for _, sample := range process.Samples {
@@ -61,11 +63,13 @@ func (c *Creater) addProcessToExperiment(process *model.Process) error {
 			if processID, err = c.createProcessWithAttrs(process, sample.ProcessAttrs); err != nil {
 				return err
 			}
-		case needsNewProcess(sample):
+			lastCreatedProcessAttrs = sample.ProcessAttrs
+		case needsNewProcess(sample, lastCreatedProcessAttrs):
 			fmt.Println("Need to create new process for sample:", sample.Name)
 			if processID, err = c.createProcessWithAttrs(process, sample.ProcessAttrs); err != nil {
 				return err
 			}
+			lastCreatedProcessAttrs = sample.ProcessAttrs
 		}
 
 		if err := c.addSampleToProcess(processID, sample); err != nil {
@@ -99,12 +103,12 @@ func (c *Creater) createProcessWithAttrs(process *model.Process, attrs []*model.
 	return id, err
 }
 
-// needsNewProcess will look through the process attributes associated with the sample. If all their values
-// are blank then it will return false, if any of them have a value then it will return true signifying that
-// a new process needs to be created.
-func needsNewProcess(sample *model.Sample) bool {
-	for _, attr := range sample.ProcessAttrs {
-		if attr.Value != nil {
+// needsNewProcess will look through the process attributes associated with the sample and the
+// last created processes process attributes. If they are different then it will return true
+// meaning that a new process should be created.
+func needsNewProcess(sample *model.Sample, lastSetOfAttrs []*model.Attribute) bool {
+	for i := 0; i < len(lastSetOfAttrs); i++ {
+		if !reflect.DeepEqual(sample.ProcessAttrs[i].Value, lastSetOfAttrs[i].Value) {
 			return true
 		}
 	}
