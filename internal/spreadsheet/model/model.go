@@ -24,18 +24,19 @@ package model
 // get stored in the sample and help to determine whether or not to create
 // a new process for a sample. For example imagine the following worksheet
 // where the first row is the headers. Remember that column 1 is sample,
-// column 2 is sample parent, and that sample attributes come after the
-// first blank header column. This worksheet has the name "Heat Treatment".
-//     sample   parent   proc att    proc att        sample att      sample att
-//   |Name   |Parent   |Time(s)   |Temperature(c)| |Grain Size(mm)|Composition(at%)|
-//   |S1     |         | 300      |400           | | 2            |mg 20           |
-//   |S2     |         |          |              | | 1            |mg 19.8         |
-//   |S3     |         | 500      |50            | | 1            |al 30           |
+// column 2 is sample parent, and that sample and process attributes have
+// keywords so we can tell them apart. Look in loader.go to see the keywords.
+// This worksheet has the name "Heat Treatment".
+//     sample   parent   proc att      proc att        sample att      sample att
+//   |Name   |Parent   |p:Time(s) |p:Temperature(c)|s:Grain Size(mm)|s:Composition(at%)|
+//   |S1     |         | 300      |400             | 2              |mg 20             |
+//   |S2     |         | 300      |400             | 1              |mg 19.8           |
+//   |S3     |         | 500      |50              | 1              |al 30             |
 //
 // Here we have 3 samples. Samples S1 and S2 will share the same process because S1 will
 // create a new process, and S2 will use that process because its process attributes
-// (Time and Temperature) are blank, meaning use the last processes attributes. S3 will
-// create a new process with new Time and Temperature process attributes.
+// (Time and Temperature) are the same as the previous process. S3 will create a new
+// process with new Time and Temperature process attributes.
 //
 // After this is parsed the data structure will look as follows:
 //     struct Process {
@@ -50,7 +51,7 @@ package model
 //                   Attributes: [{Name: "Grain Size", Value: 2, Unit: "mm"}, {Name: "Composition", Value: "mg 20", Unit: "at%"}]
 //              },
 //                   Name: "S2",
-//                   ProcessAttrs: [{Name: "Time", Value: "", Unit: "s"}, {Name: "Temperature", Value: "", Unit:"c"}],
+//                   ProcessAttrs: [{Name: "Time", Value: 300, Unit: "s"}, {Name: "Temperature", Value: 400, Unit:"c"}],
 //                   Attributes: [{Name: "Grain Size", Value: 1, Unit: "mm"}, {Name: "Composition", Value: "mg 19.8", Unit: "at%"}]
 //              },
 //              {
@@ -59,8 +60,8 @@ package model
 //                   Attributes: [{Name: "Grain Size", Value: 1, Unit: "mm"}, {Name: "Composition", Value: "al 30", Unit: "at%"}]
 //              },
 //
-// Because S2 Process Attrs are all blank it will be associated with the process created from S1. However S3 has values in
-// ProcessAttrs so it will create a new process and the sample will be associated with it.
+// Because S2 Process Attrs are the same as the last created process it will be associated with the process created from S1.
+// However S3 has different values in ProcessAttrs so it will create a new process and the sample will be associated with it.
 type Process struct {
 	Name        string
 	Index       int
