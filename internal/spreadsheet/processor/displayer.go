@@ -54,7 +54,7 @@ func (d *Displayer) showAttr(numberOfSpaces int, attr *model.Attribute) {
 		unit = fmt.Sprintf("(%s)", attr.Unit)
 	}
 	if len(attr.Value) != 0 {
-		fmt.Printf("%s%s: %s %s\n", spaces(numberOfSpaces), attr.Name, attr.Value["value"], unit)
+		fmt.Printf("%s%s: %v %s\n", spaces(numberOfSpaces), attr.Name, attr.Value["value"], unit)
 	} else {
 		fmt.Printf("%s%s: %s %s\n", spaces(numberOfSpaces), attr.Name, "No value given", unit)
 	}
