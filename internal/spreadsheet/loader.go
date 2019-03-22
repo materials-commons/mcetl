@@ -20,29 +20,20 @@ const (
 	FileAttributeColumn
 )
 
-var SampleAttributeKeywords = map[string]bool{
-	"s":                true,
-	"sample":           true,
-	"sample attribute": true,
-}
-
-var ProcessAttributeKeywords = map[string]bool{
-	"p":       true,
-	"process": true,
-}
-
-var FileAttributeKeywords = map[string]bool{
-	"f":     true,
-	"file":  true,
-	"files": true,
-}
-
 // Load will load the given excel file. This assumes that each process is in a separate
 // worksheet and the process will take on the name of the worksheet. The way that Load
 // works is it transforms the spreadsheet into a data structure that can be more easily
 // understood and worked with. This is encompassed in the model.Worksheet data structure.
 func Load(path string) ([]*model.Worksheet, error) {
 	var worksheets []*model.Worksheet
+
+	// Make sure the keywords are valid before we start processing the spreadsheet,
+	// otherwise we can't reliably load the spreadsheet because the same keyword
+	// could be used for different attribute types.
+	if err := ValidateKeywords(); err != nil {
+		return worksheets, err
+	}
+
 	xlsx, err := excelize.OpenFile(path)
 	if err != nil {
 		return worksheets, err
@@ -134,45 +125,21 @@ func (r *rowProcessor) processHeaderRow(row *excelize.Rows) {
 			continue
 		}
 
-		if isProcessAttributeHeader(colCell) {
+		if hasProcessAttributeKeyword(colCell) {
 			name, unit := cell2NameAndUnit(colCell)
 			attr := model.NewAttribute(name, unit, column)
 			r.columnType[column] = ProcessAttributeColumn
 			r.worksheet.AddProcessAttr(attr)
-		} else if isSampleAttributeHeader(colCell) {
+		} else if hasSampleAttributeKeyword(colCell) {
 			name, unit := cell2NameAndUnit(colCell)
 			attr := model.NewAttribute(name, unit, column)
 			r.columnType[column] = SampleAttributeColumn
 			r.worksheet.AddSampleAttr(attr)
-		} else if isFileAttributeHeader(colCell) {
+		} else if hasFileAttributeKeyword(colCell) {
 			// ignore for the moment
 			r.columnType[column] = FileAttributeColumn
 		}
 	}
-}
-
-func isSampleAttributeHeader(cell string) bool {
-	return findIn(cell, SampleAttributeKeywords)
-}
-
-func isProcessAttributeHeader(cell string) bool {
-	return findIn(cell, ProcessAttributeKeywords)
-}
-
-func isFileAttributeHeader(cell string) bool {
-	return findIn(cell, FileAttributeKeywords)
-}
-
-func findIn(cell string, keywords map[string]bool) bool {
-	cell = strings.ToLower(cell)
-	i := strings.Index(cell, ":")
-	if i == -1 {
-		return false
-	}
-
-	keyword := cell[:i]
-	_, ok := keywords[keyword]
-	return ok
 }
 
 // processSampleRow processes a row that has a sample on it. This row has the same format as above
