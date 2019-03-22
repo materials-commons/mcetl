@@ -16,19 +16,41 @@ import (
 )
 
 type Creater struct {
-	ProjectID    string
-	Name         string
-	Description  string
+	// The project we are adding to
+	ProjectID string
+
+	// Name of the experiment to create
+	Name string
+
+	// Description of the experiment to create
+	Description string
+
+	// The created experiments ID, this and ProjectID are needed
+	// for many of the mcapi REST calls.
 	ExperimentID string
-	client       *mcapi.Client
+
+	client *mcapi.Client
+
+	// previouslySeen is a map of process => list of samples. Whenever a sample
+	// is created in a process instance it is added to this map. This allows
+	// us to look up samples that were previously created and treat the new
+	// instance of a sample as adding additional measurements to that sample
+	// associated with that process.
+	previouslySeen map[string][]createdSample
+}
+
+type createdSample struct {
+	ID   string
+	Name string
 }
 
 func NewCreater(projectID, name, description string, client *mcapi.Client) *Creater {
 	return &Creater{
-		ProjectID:   projectID,
-		Name:        name,
-		Description: description,
-		client:      client,
+		ProjectID:      projectID,
+		Name:           name,
+		Description:    description,
+		client:         client,
+		previouslySeen: make(map[string][]createdSample),
 	}
 }
 
@@ -83,8 +105,14 @@ func (c *Creater) createWorkfowFromWorksheet(process *model.Worksheet) error {
 			lastCreatedProcessAttrs = sample.ProcessAttrs
 		}
 
-		if err := c.addSampleToProcess(processID, sample); err != nil {
-			return err
+		if seenSample := c.findAlreadySeenSample(processID, sample); seenSample != nil {
+			if err := c.addAdditionalMeasurements(processID, seenSample, sample); err != nil {
+				return err
+			}
+		} else {
+			if err := c.addSampleToProcess(processID, sample); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -127,6 +155,27 @@ func needsNewProcess(sample *model.Sample, lastSetOfAttrs []*model.Attribute) bo
 	}
 
 	return false
+}
+
+// findAlreadySeenSample looks for the sample in the list of samples associated with the given
+// processID. Matches are made by sample name as sample names identify unique samples in a given
+// process.
+func (c *Creater) findAlreadySeenSample(processID string, sample *model.Sample) *createdSample {
+	if samples, ok := c.previouslySeen[processID]; !ok {
+		return nil
+	} else {
+		for _, seen := range samples {
+			if sample.Name == seen.Name {
+				return &seen
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Creater) addAdditionalMeasurements(processID string, seenSample *createdSample, sample *model.Sample) error {
+	fmt.Printf("%sAdd additional measurements for sample %s(%s) in process %s\n", spaces(6), sample.Name, seenSample.ID, processID)
+	return nil
 }
 
 func (c *Creater) addSampleToProcess(processID string, sample *model.Sample) error {
