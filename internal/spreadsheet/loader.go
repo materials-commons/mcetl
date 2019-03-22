@@ -1,11 +1,11 @@
 package spreadsheet
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/pkg/errors"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
 
@@ -90,7 +90,9 @@ func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model
 	// attributes associated with a sample
 	for rows.Next() {
 		row++
-		rowProcessor.processSampleRow(rows, row)
+		if err := rowProcessor.processSampleRow(rows, row); err != nil {
+			return nil, err
+		}
 	}
 
 	return rowProcessor.worksheet, nil
@@ -99,6 +101,7 @@ func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model
 type rowProcessor struct {
 	worksheet  *model.Worksheet
 	columnType map[int]ColumnAttribute
+	converter  *cellConverter
 }
 
 func newRowProcessor(processName string, index int) *rowProcessor {
@@ -107,6 +110,7 @@ func newRowProcessor(processName string, index int) *rowProcessor {
 			Name:  processName,
 			Index: index,
 		},
+		converter:  newCellConverter(),
 		columnType: make(map[int]ColumnAttribute),
 	}
 }
@@ -150,7 +154,7 @@ func (r *rowProcessor) processHeaderRow(row *excelize.Rows) {
 //   cell: {edge: 1, angle: 2}, becomes the string; {value: {edge: 1, angle: 2}}
 // The reason for the conversion is that these cell values will be stored in the database a JSON objects
 // with a top level value key.
-func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) {
+func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) error {
 	column := 0
 	var currentSample *model.Sample = nil
 
@@ -182,13 +186,13 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) {
 				attr := findAttr(r.worksheet.SampleAttrs, column)
 				sampleAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
 				if colCell != "" {
-					// Cell is not blank so we need to turn the cell value in json string then from their into
-					// a map of its values.
-					val := make(map[string]interface{})
-					if err := json.Unmarshal([]byte(fmt.Sprintf(`{"value": "%s"}`, colCell)), &val); err == nil {
-						sampleAttr.Value = val
+					// Cell is not blank so store the value
+					if val, err := r.converter.cellToJSONMap(colCell); err != nil {
+						errDesc := fmt.Sprintf("Error converting cell in worksheet %s: row: %d, column: %d with value %s",
+							r.worksheet.Name, rowIndex, column, colCell)
+						return errors.Wrapf(err, errDesc)
 					} else {
-						fmt.Printf("json.Unmarhal of %s failed: %s\n", colCell, err)
+						sampleAttr.Value = val
 					}
 				}
 				currentSample.AddAttribute(sampleAttr)
@@ -198,12 +202,13 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) {
 				attr := findAttr(r.worksheet.ProcessAttrs, column)
 				processAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
 				if colCell != "" {
-					// Convert into a map from json.
-					val := make(map[string]interface{})
-					if err := json.Unmarshal([]byte(fmt.Sprintf(`{"value": "%s"}`, colCell)), &val); err == nil {
-						processAttr.Value = val
+					// Cell is not blank so store the value
+					if val, err := r.converter.cellToJSONMap(colCell); err != nil {
+						errDesc := fmt.Sprintf("Error converting cell in worksheet %s: row: %d, column: %d with value '%s'",
+							r.worksheet.Name, rowIndex, column, colCell)
+						return errors.Wrapf(err, errDesc)
 					} else {
-						fmt.Printf("json.Unmarhal of %s failed: %s\n", colCell, err)
+						processAttr.Value = val
 					}
 				}
 				currentSample.AddProcessAttribute(processAttr)
@@ -212,6 +217,8 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) {
 			}
 		}
 	}
+
+	return nil
 }
 
 // findAttr will look up the attribute in the given list of attributes. These attributes were built
