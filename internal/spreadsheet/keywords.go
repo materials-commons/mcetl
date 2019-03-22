@@ -3,7 +3,7 @@ package spreadsheet
 /*
  * keywords contains the keyword identifier for different attributes. A keyword
  * is added to a header cell to identify the attribute type. For example:
- * file:Measurements
+ *    file:Measurements
  * In the above example the file: is the keyword and Measurements tells the user
  * more about what the file contains.
  */
