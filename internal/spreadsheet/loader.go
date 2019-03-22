@@ -241,7 +241,7 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) {
 				}
 				currentSample.AddProcessAttribute(processAttr)
 			case colType == FileAttributeColumn:
-				// Not yet doing anything with his attribute type
+				currentSample.AddFile(cell2Filepath(colCell), column)
 			}
 		}
 	}
@@ -318,6 +318,18 @@ func cell2NameAndUnit(cell string) (name, unit string) {
 		unit = cell[indexOpeningParen+1:]
 		return name, unit
 	}
+}
+
+// cell2Filepath takes a file keyword cell and returns the path portion
+func cell2Filepath(cell string) string {
+	i := strings.Index(cell, ":")
+	if i != -1 {
+		// Given a string like:
+		//   file:/home/file1.txt => /home/file1.txt
+		return strings.TrimSpace(cell[i+1:])
+	}
+
+	return cell
 }
 
 // validateParents goes through the list of samples and checks each of their

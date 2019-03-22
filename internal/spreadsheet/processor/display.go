@@ -18,9 +18,16 @@ func (d *Displayer) Apply(worksheets []*model.Worksheet) error {
 		fmt.Println("Worksheet", worksheet.Name)
 		fmt.Printf("%sProcess Attributes:\n", spaces(4))
 		for _, sample := range worksheet.Samples {
-			fmt.Printf("%s associated with sample %s\n", spaces(6), sample.Name)
+			fmt.Printf("%sAssociated with sample %s\n", spaces(6), sample.Name)
 			for _, pattr := range sample.ProcessAttrs {
-				d.showAttr(10, pattr)
+				d.showAttr(8, pattr)
+			}
+
+			if len(sample.Files) != 0 {
+				fmt.Printf("%sFiles associated with process:\n", spaces(6))
+				for _, file := range sample.Files {
+					fmt.Printf("%s%s\n", spaces(8), file.Path)
+				}
 			}
 		}
 		fmt.Printf("%sSamples:\n", spaces(4))
@@ -30,8 +37,12 @@ func (d *Displayer) Apply(worksheets []*model.Worksheet) error {
 			for _, sattr := range sample.Attributes {
 				d.showAttr(10, sattr)
 			}
+			fmt.Printf("%sFiles:\n", spaces(8))
+			for _, file := range sample.Files {
+				fmt.Printf("%s%s\n", spaces(10), file.Path)
+			}
 		}
-		fmt.Println("")
+		//fmt.Println("")
 	}
 
 	return nil

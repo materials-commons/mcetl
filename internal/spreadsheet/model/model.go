@@ -94,7 +94,8 @@ type Sample struct {
 }
 
 type File struct {
-	Path string
+	Path   string
+	Column int
 }
 
 func (s *Sample) AddAttribute(attribute *Attribute) {
@@ -112,7 +113,8 @@ func NewSample(name string, row int) *Sample {
 	}
 }
 
-func (s *Sample) AddFile(file File) {
+func (s *Sample) AddFile(path string, column int) {
+	file := File{Path: path, Column: column}
 	s.Files = append(s.Files, file)
 }
 
