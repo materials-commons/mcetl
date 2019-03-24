@@ -152,7 +152,7 @@ func overlappingKeywords() bool {
 	for key := range keywordCounts {
 		count, _ := keywordCounts[key]
 		if count != 1 {
-			fmt.Printf("Keyword %s repeated in multiple attribute keyword identifiers\n", key)
+			fmt.Printf("Keyword '%s' repeated in multiple attribute keyword identifiers\n", key)
 			foundError = true
 		}
 	}
