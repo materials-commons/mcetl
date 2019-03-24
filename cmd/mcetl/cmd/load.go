@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/hashicorp/go-multierror"
 
@@ -36,15 +37,17 @@ func cliCmdLoad(cmd *cobra.Command, args []string) {
 	)
 	if file, err = cmd.Flags().GetString("file"); err != nil {
 		fmt.Println("error", err)
-		return
+		os.Exit(1)
 	}
 
 	if projectId, err = cmd.Flags().GetString("project-id"); err != nil {
 		fmt.Println("error", err)
+		os.Exit(1)
 	}
 
 	if name, err = cmd.Flags().GetString("experiment-name"); err != nil {
 		fmt.Println("error", err)
+		os.Exit(1)
 	}
 
 	processes, err := spreadsheet.Load(file)
@@ -55,8 +58,7 @@ func cliCmdLoad(cmd *cobra.Command, args []string) {
 				fmt.Println(" ", e)
 			}
 		}
-
-		return
+		os.Exit(1)
 	}
 
 	mcurl := config.GetString("mcurl")
@@ -68,5 +70,6 @@ func cliCmdLoad(cmd *cobra.Command, args []string) {
 
 	if err := spreadsheet.Create(projectId, name, client).Apply(processes); err != nil {
 		fmt.Println("Unable to process spreadsheet:", err)
+		os.Exit(1)
 	}
 }
