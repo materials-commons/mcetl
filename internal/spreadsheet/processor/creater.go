@@ -37,6 +37,11 @@ type Creater struct {
 	// instance of a sample as adding additional measurements to that sample
 	// associated with that process.
 	previouslySeen map[string][]createdSample
+
+	// existingSamples is a map of known sample names => id. If the sample is not
+	// in this map that means it's the first time it was encountered and the sample
+	// needs to be created.
+	existingSamples map[string]string
 }
 
 type createdSample struct {
@@ -82,27 +87,42 @@ func (c *Creater) createExperiment() error {
 
 // createWorkflowFromWorksheet will take a single worksheet entry that is composed
 // of multiple samples. It will then attempt to create as many processes and samples as
-// are needed from that particular worksheet entry.
+// are needed from that particular worksheet entry. It creates a new process for that
+// worksheet when it encounters a sample with a process attributes that are different
+// than the last set of process attributes it saw.
 func (c *Creater) createWorkflowFromWorksheet(process *model.Worksheet) error {
 	var (
 		processID               string
+		p                       *mcapi.Process
 		err                     error
 		lastCreatedProcessAttrs []*model.Attribute
 	)
 
 	for _, sample := range process.Samples {
 		switch {
+
 		case processID == "":
-			if processID, err = c.createProcessWithAttrs(process, sample.ProcessAttrs); err != nil {
+			if p, err = c.createProcessWithAttrs(process, sample.ProcessAttrs); err != nil {
 				return err
 			}
 			lastCreatedProcessAttrs = sample.ProcessAttrs
+			processID = p.ID
+
 		case needsNewProcess(sample, lastCreatedProcessAttrs):
 			fmt.Println("Need to create new process for sample:", sample.Name)
-			if processID, err = c.createProcessWithAttrs(process, sample.ProcessAttrs); err != nil {
+			if p, err = c.createProcessWithAttrs(process, sample.ProcessAttrs); err != nil {
 				return err
 			}
+			processID = p.ID
 			lastCreatedProcessAttrs = sample.ProcessAttrs
+		}
+
+		if _, ok := c.existingSamples[sample.Name]; !ok {
+			if s, err := c.createSample(sample); err != nil {
+				return err
+			} else {
+				c.existingSamples[sample.Name] = s.ID
+			}
 		}
 
 		if seenSample := c.findAlreadySeenSample(processID, sample); seenSample != nil {
@@ -119,7 +139,8 @@ func (c *Creater) createWorkflowFromWorksheet(process *model.Worksheet) error {
 	return nil
 }
 
-func (c *Creater) createProcessWithAttrs(process *model.Worksheet, attrs []*model.Attribute) (string, error) {
+// createProcessWithAttrs will create a new process with the given set of process attributes.
+func (c *Creater) createProcessWithAttrs(process *model.Worksheet, attrs []*model.Attribute) (*mcapi.Process, error) {
 	fmt.Printf("%sCreating Worksheet %s, in experiment %s with sample process attributes\n", spaces(4), process.Name, c.ExperimentID)
 	setup := mcapi.Setup{
 		Name:      "Test",
@@ -139,9 +160,9 @@ func (c *Creater) createProcessWithAttrs(process *model.Worksheet, attrs []*mode
 	}
 	proc, err := c.client.CreateProcess(c.ProjectID, c.ExperimentID, process.Name, []mcapi.Setup{setup})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return proc.ID, nil
+	return proc, nil
 }
 
 // needsNewProcess will look through the process attributes associated with the sample and the
@@ -157,9 +178,14 @@ func needsNewProcess(sample *model.Sample, lastSetOfAttrs []*model.Attribute) bo
 	return false
 }
 
+// createSample creates a new sample in the project.
+func (c *Creater) createSample(sample *model.Sample) (*mcapi.Sample, error) {
+	return &mcapi.Sample{}, nil
+}
+
 // findAlreadySeenSample looks for the sample in the list of samples associated with the given
 // processID. Matches are made by sample name as sample names identify unique samples in a given
-// process.
+// process in the worksheet.
 func (c *Creater) findAlreadySeenSample(processID string, sample *model.Sample) *createdSample {
 	if samples, ok := c.previouslySeen[processID]; !ok {
 		return nil
