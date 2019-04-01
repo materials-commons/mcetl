@@ -61,7 +61,7 @@ func (c *Creater) Apply(worksheets []*model.Worksheet) error {
 	}
 
 	for _, worksheet := range worksheets {
-		if err := c.createWorkfowFromWorksheet(worksheet); err != nil {
+		if err := c.createWorkflowFromWorksheet(worksheet); err != nil {
 			return err
 		}
 	}
@@ -80,10 +80,10 @@ func (c *Creater) createExperiment() error {
 	return nil
 }
 
-// createWorkfowFromWorksheet will take a single worksheet entry that is composed
+// createWorkflowFromWorksheet will take a single worksheet entry that is composed
 // of multiple samples. It will then attempt to create as many processes and samples as
 // are needed from that particular worksheet entry.
-func (c *Creater) createWorkfowFromWorksheet(process *model.Worksheet) error {
+func (c *Creater) createWorkflowFromWorksheet(process *model.Worksheet) error {
 	var (
 		processID               string
 		err                     error
