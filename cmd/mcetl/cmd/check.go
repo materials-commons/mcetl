@@ -16,8 +16,9 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-multierror"
 	"github.com/materials-commons/mcetl/internal/spreadsheet"
 	"github.com/spf13/cobra"
 )
@@ -40,7 +41,7 @@ func cliCmdCheck(cmd *cobra.Command, args []string) {
 	file, err := cmd.Flags().GetString("file")
 	if err != nil {
 		fmt.Print("error", err)
-		return
+		os.Exit(1)
 	}
 
 	processes, err := spreadsheet.Load(file)
@@ -51,10 +52,11 @@ func cliCmdCheck(cmd *cobra.Command, args []string) {
 				fmt.Println(" ", e)
 			}
 		}
-		return
+		os.Exit(1)
 	}
 
 	if err := spreadsheet.Display.Apply(processes); err != nil {
 		fmt.Println("Unable to process spreadsheet:", err)
+		os.Exit(1)
 	}
 }
