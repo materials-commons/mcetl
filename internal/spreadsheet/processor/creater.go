@@ -118,9 +118,11 @@ func (c *Creater) createWorkflowFromWorksheet(process *model.Worksheet) error {
 		}
 
 		if _, ok := c.existingSamples[sample.Name]; !ok {
+			// This is the first time we've encountered this sample so create it needs to be created.
 			if s, err := c.createSample(sample); err != nil {
 				return err
 			} else {
+				// Make sure we don't try and create the sample again by keep track of known samples.
 				c.existingSamples[sample.Name] = s.ID
 			}
 		}
@@ -158,11 +160,8 @@ func (c *Creater) createProcessWithAttrs(process *model.Worksheet, attrs []*mode
 			setup.Properties = append(setup.Properties, &p)
 		}
 	}
-	proc, err := c.client.CreateProcess(c.ProjectID, c.ExperimentID, process.Name, []mcapi.Setup{setup})
-	if err != nil {
-		return nil, err
-	}
-	return proc, nil
+
+	return c.client.CreateProcess(c.ProjectID, c.ExperimentID, process.Name, []mcapi.Setup{setup})
 }
 
 // needsNewProcess will look through the process attributes associated with the sample and the
@@ -180,7 +179,21 @@ func needsNewProcess(sample *model.Sample, lastSetOfAttrs []*model.Attribute) bo
 
 // createSample creates a new sample in the project.
 func (c *Creater) createSample(sample *model.Sample) (*mcapi.Sample, error) {
-	return &mcapi.Sample{}, nil
+	var attrs []mcapi.Property
+	for _, attr := range sample.Attributes {
+		property := mcapi.Property{
+			Name: attr.Name,
+		}
+		attrs = append(attrs, property)
+		m := mcapi.Measurement{
+			Unit:  attr.Unit,
+			Value: attr.Value,
+			OType: "object",
+		}
+		property.Measurements = append(property.Measurements, m)
+	}
+
+	return c.client.CreateSample(c.ProjectID, c.ExperimentID, sample.Name, attrs)
 }
 
 // findAlreadySeenSample looks for the sample in the list of samples associated with the given
