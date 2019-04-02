@@ -15,6 +15,8 @@ import (
 	"github.com/materials-commons/mcetl/internal/spreadsheet/model"
 )
 
+type sampleInstances map[string]*mcapi.Sample
+
 type Creater struct {
 	// The project we are adding to
 	ProjectID string
@@ -42,6 +44,8 @@ type Creater struct {
 	// in this map that means it's the first time it was encountered and the sample
 	// needs to be created.
 	existingSamples map[string]string
+
+	process2Samples map[string]sampleInstances
 }
 
 type createdSample struct {
@@ -51,11 +55,13 @@ type createdSample struct {
 
 func NewCreater(projectID, name, description string, client *mcapi.Client) *Creater {
 	return &Creater{
-		ProjectID:      projectID,
-		Name:           name,
-		Description:    description,
-		client:         client,
-		previouslySeen: make(map[string][]createdSample),
+		ProjectID:       projectID,
+		Name:            name,
+		Description:     description,
+		client:          client,
+		previouslySeen:  make(map[string][]createdSample),
+		existingSamples: make(map[string]string),
+		process2Samples: make(map[string]sampleInstances),
 	}
 }
 
@@ -65,11 +71,116 @@ func (c *Creater) Apply(worksheets []*model.Worksheet) error {
 		return err
 	}
 
+	// The algorithm for building the workflow is as follows:
+	//    1. First create all samples. These are the initial starting samples, and have not yet been transformed.
+	//    2. Go through each sample walking its list of parents starting at the top, adding that sample to each
+	//       process, and keep track when that sample is transformed so that the correct version of the sample
+	//       can be attached to a process
+
+	if err := c.createAllSamples(worksheets); err != nil {
+		return err
+	}
+
+	if err := c.createProcesses(worksheets); err != nil {
+		return err
+	}
+
+	//for _, worksheet := range worksheets {
+	//	if err := c.createWorkflowFromWorksheet(worksheet); err != nil {
+	//		return err
+	//	}
+	//}
+	return nil
+}
+
+func (c *Creater) createAllSamples(worksheets []*model.Worksheet) error {
 	for _, worksheet := range worksheets {
-		if err := c.createWorkflowFromWorksheet(worksheet); err != nil {
+		if err := c.createWorksheetSamples(worksheet); err != nil {
 			return err
 		}
 	}
+	return nil
+}
+
+func (c *Creater) createWorksheetSamples(worksheet *model.Worksheet) error {
+	for _, sample := range worksheet.Samples {
+		if _, ok := c.existingSamples[sample.Name]; !ok {
+			// This is the first time we've encountered this sample so create it needs to be created.
+			if s, err := c.createSample(sample); err != nil {
+				return err
+			} else {
+				// Make sure we don't try and create the sample again by keep track of known samples.
+				c.existingSamples[sample.Name] = s.ID
+			}
+		}
+	}
+
+	return nil
+}
+
+// createProcesses creates each of the unique processes in the spreadsheet. It does
+// this by starting with a sample walking the worksheets determining what processes
+// need to be created.
+func (c *Creater) createProcesses(worksheets []*model.Worksheet) error {
+	for sampleName := range c.existingSamples {
+		uniqueInstances, processName := c.findProcessesForSampleWithParent(sampleName, "", worksheets)
+		if err := c.createUniqueProcesses(uniqueInstances, processName); err != nil {
+			return err
+		}
+	}
+
+	for sampleName := range c.existingSamples {
+		for _, worksheet := range worksheets {
+			uniqueInstances, processName := c.findProcessesForSampleWithParent(sampleName, worksheet.Name, worksheets)
+			if err := c.createAndAttach(uniqueInstances, processName); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// Find unique instances of sample name that do not have a parent
+func (c *Creater) findProcessesForSampleWithParent(sampleName, parent string, worksheets []*model.Worksheet) ([]*model.Sample, string) {
+	instances := make(map[string]*model.Sample)
+	processName := ""
+
+	for _, worksheet := range worksheets {
+		for _, sample := range worksheet.Samples {
+			if sample.Name == sampleName && sample.Parent == parent {
+				processName = worksheet.Name
+
+				key := makeSampleInstanceKey(sample)
+				if _, ok := instances[key]; !ok {
+					// Sample instance doesn't exist
+					instances[key] = sample
+				}
+			}
+		}
+	}
+
+	var samples []*model.Sample
+	for key := range instances {
+		samples = append(samples, instances[key])
+	}
+
+	return samples, processName
+}
+
+func makeSampleInstanceKey(sample *model.Sample) string {
+	key := ""
+	for _, attr := range sample.ProcessAttrs {
+		key = fmt.Sprintf("%s%s%#v", key, attr.Unit, attr.Value)
+	}
+	return key
+}
+
+func (c *Creater) createUniqueProcesses(samples []*model.Sample, processName string) error {
+	return nil
+}
+
+func (c *Creater) createAndAttach(samples []*model.Sample, processName string) error {
 	return nil
 }
 
@@ -90,7 +201,7 @@ func (c *Creater) createExperiment() error {
 // are needed from that particular worksheet entry. It creates a new process for that
 // worksheet when it encounters a sample with a process attributes that are different
 // than the last set of process attributes it saw.
-func (c *Creater) createWorkflowFromWorksheet(process *model.Worksheet) error {
+func (c *Creater) createWorkflowFromWorksheet(worksheet *model.Worksheet) error {
 	var (
 		processID               string
 		p                       *mcapi.Process
@@ -98,19 +209,20 @@ func (c *Creater) createWorkflowFromWorksheet(process *model.Worksheet) error {
 		lastCreatedProcessAttrs []*model.Attribute
 	)
 
-	for _, sample := range process.Samples {
+	for _, sample := range worksheet.Samples {
 		switch {
 
 		case processID == "":
-			if p, err = c.createProcessWithAttrs(process, sample.ProcessAttrs); err != nil {
+			if p, err = c.createProcessWithAttrs(worksheet, sample.ProcessAttrs); err != nil {
 				return err
 			}
 			lastCreatedProcessAttrs = sample.ProcessAttrs
+			fmt.Printf("%sCreated Process with ID %s\n", spaces(6), p.ID)
 			processID = p.ID
 
 		case needsNewProcess(sample, lastCreatedProcessAttrs):
 			fmt.Println("Need to create new process for sample:", sample.Name)
-			if p, err = c.createProcessWithAttrs(process, sample.ProcessAttrs); err != nil {
+			if p, err = c.createProcessWithAttrs(worksheet, sample.ProcessAttrs); err != nil {
 				return err
 			}
 			processID = p.ID
@@ -143,7 +255,7 @@ func (c *Creater) createWorkflowFromWorksheet(process *model.Worksheet) error {
 
 // createProcessWithAttrs will create a new process with the given set of process attributes.
 func (c *Creater) createProcessWithAttrs(process *model.Worksheet, attrs []*model.Attribute) (*mcapi.Process, error) {
-	fmt.Printf("%sCreating Worksheet %s, in experiment %s with sample process attributes\n", spaces(4), process.Name, c.ExperimentID)
+	fmt.Printf("%sCreating Process %s, in experiment %s with sample process attributes\n", spaces(4), process.Name, c.ExperimentID)
 	setup := mcapi.Setup{
 		Name:      "Test",
 		Attribute: "test",
@@ -155,7 +267,7 @@ func (c *Creater) createProcessWithAttrs(process *model.Worksheet, attrs []*mode
 				Attribute: attr.Name,
 				OType:     "object",
 				Unit:      attr.Unit,
-				Value:     attr.Value,
+				Value:     attr.Value["value"],
 			}
 			setup.Properties = append(setup.Properties, &p)
 		}
@@ -187,7 +299,7 @@ func (c *Creater) createSample(sample *model.Sample) (*mcapi.Sample, error) {
 		attrs = append(attrs, property)
 		m := mcapi.Measurement{
 			Unit:  attr.Unit,
-			Value: attr.Value,
+			Value: attr.Value["value"],
 			OType: "object",
 		}
 		property.Measurements = append(property.Measurements, m)
@@ -218,6 +330,20 @@ func (c *Creater) addAdditionalMeasurements(processID string, seenSample *create
 }
 
 func (c *Creater) addSampleToProcess(processID string, sample *model.Sample) error {
-	fmt.Printf("%sCreate Sample %s for process %s\n", spaces(6), sample.Name, processID)
+	fmt.Printf("%sAdd Sample %s to process %s\n", spaces(6), sample.Name, processID)
+	//connect := mcapi.ConnectSampleToProcess{
+	//	ProcessID: processID,
+	//	SampleID:
+	//}
 	return nil
 }
+
+/*
+connect := ConnectSampleToProcess{
+		ProcessID:     proc.ID,
+		SampleID:      s.ID,
+		PropertySetID: s.PropertySetID,
+		Transform:     true,
+	}
+	s, err = c.AddSampleToProcess(p.ID, e.ID, connect)
+*/
