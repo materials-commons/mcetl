@@ -105,11 +105,11 @@ func (c *Creater) createAllSamples(worksheets []*model.Worksheet) error {
 func (c *Creater) createWorksheetSamples(worksheet *model.Worksheet) error {
 	for _, sample := range worksheet.Samples {
 		if _, ok := c.existingSamples[sample.Name]; !ok {
-			// This is the first time we've encountered this sample so create it needs to be created.
+			// This is the first time we've encountered this sample so it needs to be created.
 			if s, err := c.createSample(sample); err != nil {
 				return err
 			} else {
-				// Make sure we don't try and create the sample again by keep track of known samples.
+				// Make sure we don't try and create the sample again by keeping track of known samples.
 				c.existingSamples[sample.Name] = s.ID
 			}
 		}
@@ -122,6 +122,9 @@ func (c *Creater) createWorksheetSamples(worksheet *model.Worksheet) error {
 // this by starting with a sample walking the worksheets determining what processes
 // need to be created.
 func (c *Creater) createProcesses(worksheets []*model.Worksheet) error {
+	// Even though creating the initial set of samples creates the first set of processes, from the point
+	// of view of the spreadsheet the first processes are those listed in the spreadsheet with samples
+	// that have no parents. Here we create those first steps of processes
 	for sampleName := range c.existingSamples {
 		uniqueInstances, processName := c.findProcessesForSampleWithParent(sampleName, "", worksheets)
 		if err := c.createUniqueProcesses(uniqueInstances, processName); err != nil {
@@ -141,7 +144,7 @@ func (c *Creater) createProcesses(worksheets []*model.Worksheet) error {
 	return nil
 }
 
-// Find unique instances of sample name that do not have a parent
+// Find unique instances of sample name that do not have a parent.
 func (c *Creater) findProcessesForSampleWithParent(sampleName, parent string, worksheets []*model.Worksheet) ([]*model.Sample, string) {
 	instances := make(map[string]*model.Sample)
 	processName := ""
@@ -176,6 +179,8 @@ func makeSampleInstanceKey(sample *model.Sample) string {
 	return key
 }
 
+// createUniqueProcesses takes a list of samples that for a particular worksheet that have a unique
+// set of attributes. It then creates those processes.
 func (c *Creater) createUniqueProcesses(samples []*model.Sample, processName string) error {
 	return nil
 }
