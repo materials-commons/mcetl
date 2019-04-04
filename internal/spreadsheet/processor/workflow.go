@@ -17,7 +17,6 @@ type Workflow struct {
 type WorkflowProcess struct {
 	Worksheet *model.Worksheet
 	Samples   []*model.Sample
-	In        []*mcapi.Sample
 	Out       []*mcapi.Sample
 	Process   *mcapi.Process
 	To        []*WorkflowProcess
@@ -68,6 +67,11 @@ func (w *Workflow) createSampleProcesses(worksheets []*model.Worksheet) {
 	}
 }
 
+// createUniqueProcessesMap goes through the worksheet and identifies all the unique process
+// instances that need to be created. For example, in a worksheet a process will be created
+// whenever the process attributes in that worksheet are uniquely specified. So a particular
+// worksheet can result in multiple processes being created, even though each process will
+// be of the same "type".
 func (w *Workflow) createUniqueProcessesMap(worksheets []*model.Worksheet) {
 	for _, worksheet := range worksheets {
 		for _, sample := range worksheet.Samples {
@@ -89,6 +93,21 @@ func (w *Workflow) createUniqueProcessesMap(worksheets []*model.Worksheet) {
 	}
 }
 
+// wireupWorkflow walks through the worksheets and the unique list of processes looking for the parent
+// attribute in the worksheets. The parent attribute is used to wire two processes together. For example
+// given:
+//   Worksheet: CT
+//    Sample1 Parent: SEM
+//   Worksheet: SEM
+//     Sample1
+// This will create a workflow that looks as follows SEM->CT. Where -> is S1 from SEM going into the CT process.
+// There is one special case. Samples need to be created. Each Created sample belongs to a "Create Samples"
+// process. The "Created Samples" process is not actually in the spreadsheet. Instead it is implicitly in there and
+// is identified by unique sample names.
+//
+// Before wireupWorkflow is run the method "createSampleProcesses" runs and creates these process nodes and puts
+// them in the root. Thus any sample that doesn't have an actual parent in the spreadsheet implicitly has a parent
+// that is pointing to a "Create Samples" process. In the code you can see this where we check for sample.Parent == "".
 func (w *Workflow) wireupWorkflow(worksheets []*model.Worksheet) {
 	for _, worksheet := range worksheets {
 		for _, sample := range worksheet.Samples {
