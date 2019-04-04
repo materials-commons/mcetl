@@ -68,6 +68,7 @@ func (c *Creater) createWorkflowSteps(wp *WorkflowProcess) error {
 		if sample, err := c.createSample(wp.Samples[0]); err != nil {
 			return err
 		} else {
+			fmt.Printf("   Created sample %#v\n", sample)
 			wp.Out = append(wp.Out, sample)
 		}
 	} else {
@@ -84,6 +85,8 @@ func (c *Creater) createWorkflowSteps(wp *WorkflowProcess) error {
 			if err != nil {
 				return err
 			}
+
+			fmt.Printf("Created Process %s %#v\n", wp.Worksheet.Name, p)
 			wp.Process = p
 		}
 
@@ -91,6 +94,7 @@ func (c *Creater) createWorkflowSteps(wp *WorkflowProcess) error {
 			if s, err := c.addSampleToProcess(wp.Process.ID, sample); err != nil {
 				return err
 			} else {
+				fmt.Printf("  added Sample To Process %s %#v\n", wp.Worksheet.Name, s)
 				wp.Out = append(wp.Out, s)
 			}
 		}
@@ -148,7 +152,7 @@ func (c *Creater) createSample(sample *model.Sample) (*mcapi.Sample, error) {
 		property := mcapi.Property{
 			Name: attr.Name,
 		}
-		fmt.Printf("   attr.Value = %#v: %#v\n", attr.Value, attr.Value["value"])
+		//fmt.Printf("   attr.Value = %#v: %#v\n", attr.Value, attr.Value["value"])
 		attrs = append(attrs, property)
 		m := mcapi.Measurement{
 			Unit:  attr.Unit,
@@ -167,7 +171,7 @@ func (c *Creater) addAdditionalMeasurements(processID string, seenSample *create
 }
 
 func (c *Creater) addSampleToProcess(processID string, sample *mcapi.Sample) (*mcapi.Sample, error) {
-	fmt.Printf("%sAdd Sample %s to process %s\n", spaces(6), sample.Name, processID)
+	fmt.Printf("%sAdd Sample %s to process %s %#v\n", spaces(6), sample.Name, processID, sample)
 	connect := mcapi.ConnectSampleToProcess{
 		ProcessID:     processID,
 		SampleID:      sample.ID,
