@@ -14,6 +14,12 @@ func NewDisplayer() *Displayer {
 }
 
 func (d *Displayer) Apply(worksheets []*model.Worksheet) error {
+	d.printWorksheets(worksheets)
+	d.printWorkflow(worksheets)
+	return nil
+}
+
+func (d *Displayer) printWorksheets(worksheets []*model.Worksheet) {
 	for _, worksheet := range worksheets {
 		fmt.Println("Worksheet", worksheet.Name)
 		fmt.Printf("%sProcess Attributes:\n", spaces(4))
@@ -44,8 +50,32 @@ func (d *Displayer) Apply(worksheets []*model.Worksheet) error {
 		}
 		//fmt.Println("")
 	}
+}
 
-	return nil
+func (d *Displayer) printWorkflow(worksheets []*model.Worksheet) {
+	fmt.Println("======= workflow =======")
+	wf := newWorkflow()
+	wf.constructWorkflow(worksheets)
+	fmt.Println("Create samples:")
+	for _, wp := range wf.root {
+		for _, sample := range wp.Samples {
+			fmt.Printf("%sSample %s\n", spaces(2), sample.Name)
+			d.printWorkflowSteps(4, wp)
+		}
+	}
+}
+
+func (d *Displayer) printWorkflowSteps(indent int, wp *WorkflowProcess) {
+	if wp.Worksheet != nil {
+		fmt.Printf("%s%s", spaces(indent), wp.Worksheet.Name)
+	} else {
+		fmt.Printf("%sCreate Sample", spaces(indent))
+	}
+
+	for _, next := range wp.To {
+		d.printWorkflowSteps(indent, next)
+	}
+	fmt.Println("")
 }
 
 func (d *Displayer) showAttr(numberOfSpaces int, attr *model.Attribute) {
