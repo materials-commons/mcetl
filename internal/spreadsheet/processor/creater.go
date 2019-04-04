@@ -90,6 +90,8 @@ func (c *Creater) createWorkflowSteps(wp *WorkflowProcess) error {
 			wp.Process = p
 		}
 
+		// TODO: Add measurements to process
+
 		for _, sample := range inputSamples {
 			if s, err := c.addSampleToProcess(wp.Process.ID, sample); err != nil {
 				return err
