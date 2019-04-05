@@ -100,7 +100,7 @@ func (c *cellConverter) cellToFloat(cell string) (map[string]interface{}, error)
 		return c.cellToString(cell)
 	}
 
-	if err := json.Unmarshal([]byte(fmt.Sprintf(`{"value": %f}`, floatVal)), &val); err == nil {
+	if err := json.Unmarshal([]byte(fmt.Sprintf(`{"value": %f}`, floatVal)), &val); err != nil {
 		return c.cellToString(cell)
 	}
 	return val, nil
