@@ -184,47 +184,47 @@ func (w *Workflow) wireupWorkflow(worksheets []*model.Worksheet) {
 			// If Parent is blank then the input sample is from the original list of created samples
 			if sample.Parent == "" {
 				// Find the create sample process that is going to feed the sample into this process.
-				wp := w.findMatchingCreateSampleProcess(sample.Name)
-				if wp == nil {
+				createSamplesProcess := w.findMatchingCreateSampleProcess(sample.Name)
+				if createSamplesProcess == nil {
 					// Should never happen
 					fmt.Println("Can't find matching create sample process for ", sample.Name)
 				} else {
 					// Create the key to look up this process in the uniqueProcessInstances map.
 					key := makeSampleInstanceKey(sample, worksheet.Name)
-					if instance, ok := w.uniqueProcessInstances[key]; !ok {
+					if uniqueProcessFromWorksheet, ok := w.uniqueProcessInstances[key]; !ok {
 						// If this happens then we have a bug in the code for creating all the unique process instances
 						// because this means we've found a process that isn't in that map.
 						fmt.Printf("Can't find matching process to wire up %s %#v\n", worksheet.Name, sample)
 					} else {
-						// instance is the process, wp is the create samples process that is sending a sample
-						// into this process. We want to keep track of the links in both directions. So instance
-						// (our process) tracks the incoming process in From, and wp (the Create Samples process)
-						// tracks the process (in this case instance) that it is sending stuff to (in wp.To).
-						instance.From = append(instance.From, wp)
-						wp.To = append(wp.To, instance)
+						// uniqueProcessFromWorksheet is the process, createSamplesProcess is the create samples process that is sending a sample
+						// into this process. We want to keep track of the links in both directions. So uniqueProcessFromWorksheet
+						// (our process) tracks the incoming process in From, and createSamplesProcess (the Create Samples process)
+						// tracks the process (in this case uniqueProcessFromWorksheet) that it is sending stuff to (in createSamplesProcess.To).
+						uniqueProcessFromWorksheet.From = append(uniqueProcessFromWorksheet.From, createSamplesProcess)
+						createSamplesProcess.To = append(createSamplesProcess.To, uniqueProcessFromWorksheet)
 					}
 				}
 			} else {
 				// If we are here then sample.Parent in the worksheet is not blank. So we need to find the
 				// process that Parent points to.
-				wp := w.findMatchingEntry(sample.Name, sample.Parent, worksheets)
+				parentProcess := w.findMatchingEntry(sample.Name, sample.Parent, worksheets)
 
-				if wp == nil {
+				if parentProcess == nil {
 					// As above this should never happen as findMatchingEntry is looking for processes
 					// in the uniqueProcessInstances, and if it can't find one then again we've a process
 					// that should have been there.
 					fmt.Println("Can't find matching create sample process for ", sample.Name)
 				} else {
-					// Now we create the key to look up this process. So, wp points to the parent process, which
+					// Now we create the key to look up this process. So, parentProcess points to the parent process, which
 					// is the process sending a sample in. And here are looking up the process to receive that.
 					key := makeSampleInstanceKey(sample, worksheet.Name)
-					if instance, ok := w.uniqueProcessInstances[key]; !ok {
+					if uniqueProcessFromWorksheet, ok := w.uniqueProcessInstances[key]; !ok {
 						fmt.Printf("Can't find matching process to wire up %s %#v\n", worksheet.Name, sample)
 					} else {
-						// instance is the process in the worksheet, wp is the parent process that is sending a sample
+						// uniqueProcessFromWorksheet is the process in the worksheet, parentProcess is the parent process that is sending a sample
 						// into this process.
-						instance.From = append(instance.From, wp)
-						wp.To = append(wp.To, instance)
+						uniqueProcessFromWorksheet.From = append(uniqueProcessFromWorksheet.From, parentProcess)
+						parentProcess.To = append(parentProcess.To, uniqueProcessFromWorksheet)
 					}
 				}
 			}
