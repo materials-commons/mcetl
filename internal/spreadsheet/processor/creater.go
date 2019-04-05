@@ -1,15 +1,9 @@
-// Creater will take the loaded set of processes and create the workflow
-// on the server. It steps through each process entry and then each
-// of the samples for that process. For each sample associated with a top
-// level process it will check to see if a new process should be created.
-// To understand this layout look in the model to see how a process
-// is laid out.
-
 package processor
 
-import (
-	"fmt"
+//
+//
 
+import (
 	"github.com/materials-commons/gomcapi"
 	"github.com/materials-commons/mcetl/internal/spreadsheet/model"
 )
@@ -24,16 +18,11 @@ type Creater struct {
 	// Description of the experiment to create
 	Description string
 
-	// The created experiments ID, this and ProjectID are needed
+	// The created experiment's ID. This and ProjectID are needed
 	// for many of the mcapi REST calls.
 	ExperimentID string
 
 	client *mcapi.Client
-}
-
-type createdSample struct {
-	ID   string
-	Name string
 }
 
 func NewCreater(projectID, name, description string, client *mcapi.Client) *Creater {
@@ -68,7 +57,6 @@ func (c *Creater) createWorkflowSteps(wp *WorkflowProcess) error {
 		if sample, err := c.createSample(wp.Samples[0]); err != nil {
 			return err
 		} else {
-			fmt.Printf("   Created sample %#v\n", sample)
 			wp.Out = append(wp.Out, sample)
 		}
 	} else {
@@ -79,27 +67,36 @@ func (c *Creater) createWorkflowSteps(wp *WorkflowProcess) error {
 		// 1. Add additional measurements for that process/sample
 		//
 		// Going to need to keep track of the samples so we know what the inputs are
-		inputSamples := c.getInputSamples(wp)
 		if wp.Process == nil {
-			p, err := c.createProcessWithAttrs(wp.Worksheet, wp.Worksheet.ProcessAttrs)
+			// Create the process
+			inputSamples := c.getInputSamples(wp)
+			p, err := c.createProcessWithAttrs(wp.Worksheet, wp.Worksheet.Samples[0].ProcessAttrs)
 			if err != nil {
 				return err
 			}
 
-			fmt.Printf("Created Process %s %#v\n", wp.Worksheet.Name, p)
 			wp.Process = p
-		}
 
-		// TODO: Add measurements to process
+			// Add the samples to the process
+			for _, sample := range inputSamples {
+				if s, err := c.addSampleToProcess(wp.Process.ID, sample); err != nil {
+					return err
+				} else {
+					wp.Out = append(wp.Out, s)
 
-		for _, sample := range inputSamples {
-			if s, err := c.addSampleToProcess(wp.Process.ID, sample); err != nil {
-				return err
-			} else {
-				fmt.Printf("  added Sample To Process %s %#v\n", wp.Worksheet.Name, s)
-				wp.Out = append(wp.Out, s)
+					// Add measurements
+					worksheetSample := c.findSample(s, wp.Worksheet.Samples)
+					if worksheetSample != nil {
+						if err := c.addAdditionalMeasurements(wp.Process.ID, s.ID, s.PropertySetID, worksheetSample); err != nil {
+							return err
+						}
+					}
+				}
 			}
+
+			// TODO: Add measurements to process
 		}
+
 	}
 
 	for _, next := range wp.To {
@@ -113,7 +110,6 @@ func (c *Creater) createWorkflowSteps(wp *WorkflowProcess) error {
 
 // createExperiment will create a new experiment in the given project
 func (c *Creater) createExperiment() error {
-	fmt.Printf("Creating Experiment: %s\n", c.Name)
 	experiment, err := c.client.CreateExperiment(c.ProjectID, c.Name, c.Description)
 	if err != nil {
 		return err
@@ -125,11 +121,11 @@ func (c *Creater) createExperiment() error {
 
 // createProcessWithAttrs will create a new process with the given set of process attributes.
 func (c *Creater) createProcessWithAttrs(process *model.Worksheet, attrs []*model.Attribute) (*mcapi.Process, error) {
-	fmt.Printf("%sCreating Process %s, in experiment %s with sample process attributes\n", spaces(4), process.Name, c.ExperimentID)
 	setup := mcapi.Setup{
-		Name:      "Test",
-		Attribute: "test",
+		Name:      "Conditions",
+		Attribute: "conditions",
 	}
+
 	for _, attr := range attrs {
 		if attr.Value != nil {
 			p := mcapi.SetupProperty{
@@ -137,7 +133,7 @@ func (c *Creater) createProcessWithAttrs(process *model.Worksheet, attrs []*mode
 				Attribute: attr.Name,
 				OType:     "object",
 				Unit:      attr.Unit,
-				Value:     attr.Value,
+				Value:     attr.Value["value"],
 			}
 			setup.Properties = append(setup.Properties, &p)
 		}
@@ -148,17 +144,15 @@ func (c *Creater) createProcessWithAttrs(process *model.Worksheet, attrs []*mode
 
 // createSample creates a new sample in the project.
 func (c *Creater) createSample(sample *model.Sample) (*mcapi.Sample, error) {
-	fmt.Printf("%sCreating Sample %s", spaces(4), sample.Name)
 	var attrs []mcapi.Property
 	for _, attr := range sample.Attributes {
 		property := mcapi.Property{
 			Name: attr.Name,
 		}
-		//fmt.Printf("   attr.Value = %#v: %#v\n", attr.Value, attr.Value["value"])
 		attrs = append(attrs, property)
 		m := mcapi.Measurement{
 			Unit:  attr.Unit,
-			Value: attr.Value,
+			Value: attr.Value["value"],
 			OType: "object",
 		}
 		property.Measurements = append(property.Measurements, m)
@@ -167,13 +161,40 @@ func (c *Creater) createSample(sample *model.Sample) (*mcapi.Sample, error) {
 	return c.client.CreateSample(c.ProjectID, c.ExperimentID, sample.Name, attrs)
 }
 
-func (c *Creater) addAdditionalMeasurements(processID string, seenSample *createdSample, sample *model.Sample) error {
-	fmt.Printf("%sAdd additional measurements for sample %s(%s) in process %s\n", spaces(6), sample.Name, seenSample.ID, processID)
+func (c *Creater) addAdditionalMeasurements(processID string, sampleID, propertySetID string, sample *model.Sample) error {
+	var attrs []mcapi.SampleProperty
+	sm := mcapi.SampleMeasurements{
+		SampleID:      sampleID,
+		PropertySetID: propertySetID,
+	}
+	for _, sampleAttr := range sample.Attributes {
+		attr := mcapi.SampleProperty{
+			Name: sampleAttr.Name,
+		}
+		m := mcapi.Measurement{
+			Unit:  sampleAttr.Unit,
+			Value: sampleAttr.Value["value"],
+			OType: "object",
+		}
+		attr.Measurements = append(attr.Measurements, m)
+		attrs = append(attrs, attr)
+	}
+	sm.Attributes = attrs
+	_, err := c.client.AddMeasurementsToSampleInProcess(c.ProjectID, c.ExperimentID, processID, sm)
+	return err
+}
+
+func (c *Creater) findSample(createdSample *mcapi.Sample, samples []*model.Sample) *model.Sample {
+	for _, sample := range samples {
+		if sample.Name == createdSample.Name {
+			return sample
+		}
+	}
+
 	return nil
 }
 
 func (c *Creater) addSampleToProcess(processID string, sample *mcapi.Sample) (*mcapi.Sample, error) {
-	fmt.Printf("%sAdd Sample %s to process %s %#v\n", spaces(6), sample.Name, processID, sample)
 	connect := mcapi.ConnectSampleToProcess{
 		ProcessID:     processID,
 		SampleID:      sample.ID,
