@@ -196,10 +196,11 @@ func (w *Workflow) wireupWorkflow(worksheets []*model.Worksheet) {
 						// because this means we've found a process that isn't in that map.
 						fmt.Printf("Can't find matching process to wire up %s %#v\n", worksheet.Name, sample)
 					} else {
-						// uniqueProcessFromWorksheet is the process, createSamplesProcess is the create samples process that is sending a sample
-						// into this process. We want to keep track of the links in both directions. So uniqueProcessFromWorksheet
-						// (our process) tracks the incoming process in From, and createSamplesProcess (the Create Samples process)
-						// tracks the process (in this case uniqueProcessFromWorksheet) that it is sending stuff to (in createSamplesProcess.To).
+						// uniqueProcessFromWorksheet is the process from the worksheet, createSamplesProcess is the
+						// create samples process that is sending a sample into this process. We want to keep track
+						// of the links in both directions. So uniqueProcessFromWorksheet (our process) tracks the
+						// incoming process in From, and createSamplesProcess (the Create Samples process) tracks the
+						// process (in this case uniqueProcessFromWorksheet) that it is sending stuff to (in createSamplesProcess.To).
 						uniqueProcessFromWorksheet.From = append(uniqueProcessFromWorksheet.From, createSamplesProcess)
 						createSamplesProcess.To = append(createSamplesProcess.To, uniqueProcessFromWorksheet)
 					}
@@ -221,8 +222,11 @@ func (w *Workflow) wireupWorkflow(worksheets []*model.Worksheet) {
 					if uniqueProcessFromWorksheet, ok := w.uniqueProcessInstances[key]; !ok {
 						fmt.Printf("Can't find matching process to wire up %s %#v\n", worksheet.Name, sample)
 					} else {
-						// uniqueProcessFromWorksheet is the process in the worksheet, parentProcess is the parent process that is sending a sample
-						// into this process.
+						// uniqueProcessFromWorksheet is the process in the worksheet, parentProcess is the parent
+						// process that is sending a sample into it. We want to keep track of the links in both
+						// directions. So uniqueProcessFromWorksheet (our process) tracks the incoming process in
+						// From, and parentProcess tracks which process (in this case uniqueProcessFromWorksheet) that
+						// it is sending stuff to (in parentProcess.To).
 						uniqueProcessFromWorksheet.From = append(uniqueProcessFromWorksheet.From, parentProcess)
 						parentProcess.To = append(parentProcess.To, uniqueProcessFromWorksheet)
 					}
