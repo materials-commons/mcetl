@@ -214,11 +214,14 @@ func (w *Workflow) wireupWorkflow(worksheets []*model.Worksheet) {
 	}
 }
 
+// wireProcessesTogetherFromTo wires the processes together point correctly setting up the links
+// in both directions.
 func (w *Workflow) wireProcessesTogetherFromTo(fromProcess, toProcess *WorkflowProcess) {
 	toProcess.From = append(toProcess.From, fromProcess)
 	fromProcess.To = append(fromProcess.To, toProcess)
 }
 
+// findProcessFromSampleInWorksheet creates the unique name to look up a process process in uniqueProcessInstances.
 func (w *Workflow) findProcessFromSampleInWorksheet(sample *model.Sample, worksheetName string) *WorkflowProcess {
 	key := makeSampleInstanceKey(sample, worksheetName)
 	if instance, ok := w.uniqueProcessInstances[key]; !ok {
