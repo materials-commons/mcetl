@@ -179,48 +179,37 @@ func (w *Workflow) createUniqueProcessesMap(worksheets []*model.Worksheet) {
 // them in the root. Thus any sample that doesn't have an actual parent in the spreadsheet implicitly has a parent
 // that is pointing to a "Create Samples" process. In the code you can see this where we check for sample.Parent == "".
 func (w *Workflow) wireupWorkflow(worksheets []*model.Worksheet) {
+	var parentProcess *WorkflowProcess
+
 	for _, worksheet := range worksheets {
 		for _, sample := range worksheet.Samples {
+
+			// First get the process from the worksheet that we are sending the sample to
+			uniqueProcessFromWorksheet := w.findProcessFromSampleInWorksheet(sample, worksheet.Name)
+			if uniqueProcessFromWorksheet == nil {
+				// If this happens then we have a bug in the code for creating all the unique process instances
+				// because this means we've found a process that isn't in that map.
+				fmt.Printf("Can't find matching process to wire up %s %#v\n", worksheet.Name, sample)
+				continue
+			}
+
 			// If Parent is blank then the input sample is from the original list of created samples
 			if sample.Parent == "" {
 				// Find the create sample process that is going to feed the sample into this process.
-				createSamplesProcess := w.findMatchingCreateSampleProcess(sample.Name)
-				if createSamplesProcess == nil {
-					// Should never happen
-					fmt.Println("Can't find matching create sample process for ", sample.Name)
-					continue
-				}
-				uniqueProcessFromWorksheet := w.findProcessFromSampleInWorksheet(sample, worksheet.Name)
-
-				if uniqueProcessFromWorksheet == nil {
-					// If this happens then we have a bug in the code for creating all the unique process instances
-					// because this means we've found a process that isn't in that map.
-					fmt.Printf("Can't find matching process to wire up %s %#v\n", worksheet.Name, sample)
-					continue
-				}
-				w.wireProcessesTogetherFromTo(createSamplesProcess, uniqueProcessFromWorksheet)
-
+				parentProcess = w.findMatchingCreateSampleProcess(sample.Name)
 			} else {
 				// If we are here then sample.Parent in the worksheet is not blank. So we need to find the
 				// process that Parent points to.
-				parentProcess := w.findMatchingEntry(sample.Name, sample.Parent, worksheets)
-
-				if parentProcess == nil {
-					// As above this should never happen as findMatchingEntry is looking for processes
-					// in the uniqueProcessInstances, and if it can't find one then again we've a process
-					// that should have been there.
-					fmt.Println("Can't find matching create sample process for ", sample.Name)
-					continue
-				}
-
-				uniqueProcessFromWorksheet := w.findProcessFromSampleInWorksheet(sample, worksheet.Name)
-				if uniqueProcessFromWorksheet == nil {
-					fmt.Printf("Can't find matching process to wire up %s %#v\n", worksheet.Name, sample)
-					continue
-				}
-
-				w.wireProcessesTogetherFromTo(parentProcess, uniqueProcessFromWorksheet)
+				parentProcess = w.findMatchingEntry(sample.Name, sample.Parent, worksheets)
 			}
+
+			if parentProcess == nil {
+				// Should never happen
+				fmt.Println("Can't find matching create sample process for ", sample.Name)
+				continue
+			}
+
+			w.wireProcessesTogetherFromTo(parentProcess, uniqueProcessFromWorksheet)
 		}
 	}
 }
