@@ -188,23 +188,18 @@ func (w *Workflow) wireupWorkflow(worksheets []*model.Worksheet) {
 				if createSamplesProcess == nil {
 					// Should never happen
 					fmt.Println("Can't find matching create sample process for ", sample.Name)
-				} else {
-					// Create the key to look up this process in the uniqueProcessInstances map.
-					key := makeSampleInstanceKey(sample, worksheet.Name)
-					if uniqueProcessFromWorksheet, ok := w.uniqueProcessInstances[key]; !ok {
-						// If this happens then we have a bug in the code for creating all the unique process instances
-						// because this means we've found a process that isn't in that map.
-						fmt.Printf("Can't find matching process to wire up %s %#v\n", worksheet.Name, sample)
-					} else {
-						// uniqueProcessFromWorksheet is the process from the worksheet, createSamplesProcess is the
-						// create samples process that is sending a sample into this process. We want to keep track
-						// of the links in both directions. So uniqueProcessFromWorksheet (our process) tracks the
-						// incoming process in From, and createSamplesProcess (the Create Samples process) tracks the
-						// process (in this case uniqueProcessFromWorksheet) that it is sending stuff to (in createSamplesProcess.To).
-						uniqueProcessFromWorksheet.From = append(uniqueProcessFromWorksheet.From, createSamplesProcess)
-						createSamplesProcess.To = append(createSamplesProcess.To, uniqueProcessFromWorksheet)
-					}
+					continue
 				}
+				uniqueProcessFromWorksheet := w.findProcessFromSampleInWorksheet(sample, worksheet.Name)
+
+				if uniqueProcessFromWorksheet == nil {
+					// If this happens then we have a bug in the code for creating all the unique process instances
+					// because this means we've found a process that isn't in that map.
+					fmt.Printf("Can't find matching process to wire up %s %#v\n", worksheet.Name, sample)
+					continue
+				}
+				w.wireProcessesTogetherFromTo(createSamplesProcess, uniqueProcessFromWorksheet)
+
 			} else {
 				// If we are here then sample.Parent in the worksheet is not blank. So we need to find the
 				// process that Parent points to.
@@ -215,28 +210,22 @@ func (w *Workflow) wireupWorkflow(worksheets []*model.Worksheet) {
 					// in the uniqueProcessInstances, and if it can't find one then again we've a process
 					// that should have been there.
 					fmt.Println("Can't find matching create sample process for ", sample.Name)
-				} else {
-					// Now we create the key to look up this process. So, parentProcess points to the parent process, which
-					// is the process sending a sample in. And here are looking up the process to receive that.
-					key := makeSampleInstanceKey(sample, worksheet.Name)
-					if uniqueProcessFromWorksheet, ok := w.uniqueProcessInstances[key]; !ok {
-						fmt.Printf("Can't find matching process to wire up %s %#v\n", worksheet.Name, sample)
-					} else {
-						// uniqueProcessFromWorksheet is the process in the worksheet, parentProcess is the parent
-						// process that is sending a sample into it. We want to keep track of the links in both
-						// directions. So uniqueProcessFromWorksheet (our process) tracks the incoming process in
-						// From, and parentProcess tracks which process (in this case uniqueProcessFromWorksheet) that
-						// it is sending stuff to (in parentProcess.To).
-						uniqueProcessFromWorksheet.From = append(uniqueProcessFromWorksheet.From, parentProcess)
-						parentProcess.To = append(parentProcess.To, uniqueProcessFromWorksheet)
-					}
+					continue
 				}
+
+				uniqueProcessFromWorksheet := w.findProcessFromSampleInWorksheet(sample, worksheet.Name)
+				if uniqueProcessFromWorksheet == nil {
+					fmt.Printf("Can't find matching process to wire up %s %#v\n", worksheet.Name, sample)
+					continue
+				}
+
+				w.wireProcessesTogetherFromTo(parentProcess, uniqueProcessFromWorksheet)
 			}
 		}
 	}
 }
 
-func (w *Workflow) wireProcessesTogether(fromProcess, toProcess *WorkflowProcess) {
+func (w *Workflow) wireProcessesTogetherFromTo(fromProcess, toProcess *WorkflowProcess) {
 	toProcess.From = append(toProcess.From, fromProcess)
 	fromProcess.To = append(fromProcess.To, toProcess)
 }
