@@ -8,6 +8,7 @@ import (
 	"github.com/materials-commons/mcetl/internal/spreadsheet/model"
 )
 
+// Creater holds the state needed to create the workflow on the server.
 type Creater struct {
 	// The project we are adding to
 	ProjectID string
@@ -34,13 +35,18 @@ func NewCreater(projectID, name, description string, client *mcapi.Client) *Crea
 	}
 }
 
+// Apply implements the Process interface. This version creates the workflow on the server.
 func (c *Creater) Apply(worksheets []*model.Worksheet) error {
+	// 1. Create the experiment on the server to load the workflow into.
 	if err := c.createExperiment(); err != nil {
 		return nil
 	}
 
+	// 2. Create the workflow from the worksheets
 	wf := newWorkflow()
 	wf.constructWorkflow(worksheets)
+
+	// 3. Walk through the workflow creating each of the steps.
 	for _, wp := range wf.root {
 		if err := c.createWorkflowSteps(wp); err != nil {
 			return err
@@ -99,6 +105,9 @@ func (c *Creater) createWorkflowSteps(wp *WorkflowProcess) error {
 
 	}
 
+	// Now walk all the WorkflowProcess steps that it sends samples into
+	// and create those workflow steps. Do this by recursively calling
+	// ourselves (createWorkflowSteps).
 	for _, next := range wp.To {
 		if err := c.createWorkflowSteps(next); err != nil {
 			return err
@@ -142,7 +151,7 @@ func (c *Creater) createProcessWithAttrs(process *model.Worksheet, attrs []*mode
 	return c.client.CreateProcess(c.ProjectID, c.ExperimentID, process.Name, []mcapi.Setup{setup})
 }
 
-// createSample creates a new sample in the project.
+// createSample creates a new sample in the project on the server.
 func (c *Creater) createSample(sample *model.Sample) (*mcapi.Sample, error) {
 	var attrs []mcapi.Property
 	for _, attr := range sample.Attributes {
@@ -161,6 +170,8 @@ func (c *Creater) createSample(sample *model.Sample) (*mcapi.Sample, error) {
 	return c.client.CreateSample(c.ProjectID, c.ExperimentID, sample.Name, attrs)
 }
 
+// addAdditionalMeasurements adds measurements from the model.Sample to the server side process and sample/propertset.
+// In the workflow a model.Sample contains all the measurements for a sample reference in the spreadsheet.
 func (c *Creater) addAdditionalMeasurements(processID string, sampleID, propertySetID string, sample *model.Sample) error {
 	var attrs []mcapi.SampleProperty
 	sm := mcapi.SampleMeasurements{
@@ -184,6 +195,8 @@ func (c *Creater) addAdditionalMeasurements(processID string, sampleID, property
 	return err
 }
 
+// findSample finds the model.Sample that corresponds to the server side sample. Matching is based
+// on name as each sample in the worksheets will have a unique name.
 func (c *Creater) findSample(createdSample *mcapi.Sample, samples []*model.Sample) *model.Sample {
 	for _, sample := range samples {
 		if sample.Name == createdSample.Name {
@@ -194,6 +207,8 @@ func (c *Creater) findSample(createdSample *mcapi.Sample, samples []*model.Sampl
 	return nil
 }
 
+// addSampleToProcess will add the sample to the process on the server. It hides the details of constructing
+// the go-mcapi call.
 func (c *Creater) addSampleToProcess(processID string, sample *mcapi.Sample) (*mcapi.Sample, error) {
 	connect := mcapi.ConnectSampleToProcess{
 		ProcessID:     processID,
@@ -205,9 +220,13 @@ func (c *Creater) addSampleToProcess(processID string, sample *mcapi.Sample) (*m
 	return s, err
 }
 
+// getInputSamples goes to the parent workflow processes and constructs the list
+// of samples that are input into the workflow process (in this case the wp
+// parameter).
 func (c *Creater) getInputSamples(wp *WorkflowProcess) []*mcapi.Sample {
 	var samples []*mcapi.Sample
-	// retrieve all samples from parent steps
+	// A WorkflowProcess contains a pointer to its parent workflow processes, this allows
+	// it to retrieve all samples from the parent workflow process steps.
 	for _, parentWorkflow := range wp.From {
 		samples = append(samples, parentWorkflow.Out...)
 	}
