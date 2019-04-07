@@ -26,6 +26,8 @@ func init() {
 	loadCmd.Flags().StringP("file", "f", "", "Path to the excel spreadsheet to create experiment from")
 	loadCmd.Flags().StringP("project-id", "p", "", "Project to create experiment in")
 	loadCmd.Flags().StringP("experiment-name", "n", "", "Name of experiment to create")
+	loadCmd.Flags().StringP("mcurl", "u", "http://localhost:5016/api", "URL for the API service")
+	loadCmd.Flags().StringP("apikey", "k", "", "apikey to pass in REST API calls")
 }
 
 func cliCmdLoad(cmd *cobra.Command, args []string) {
@@ -50,9 +52,27 @@ func cliCmdLoad(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	mcurl := config.GetString("mcurl")
+	if mcurl == "" {
+		if mcurl, err = cmd.Flags().GetString("mcurl"); err != nil {
+			fmt.Println("error", err)
+			os.Exit(1)
+		}
+	}
+	fmt.Println("Using mcurl:", mcurl)
+
+	apikey := config.GetString("apikey")
+	if apikey == "" {
+		if apikey, err = cmd.Flags().GetString("apikey"); err != nil {
+			fmt.Println("error", err)
+			os.Exit(1)
+		}
+	}
+	fmt.Println("Using apikey:", apikey)
+
 	processes, err := spreadsheet.Load(file)
 	if err != nil {
-		fmt.Println("Loading spreadsheet failed")
+		fmt.Println("Loading spreadsheet failed:")
 		if merr, ok := err.(*multierror.Error); ok {
 			for _, e := range merr.Errors {
 				fmt.Println(" ", e)
@@ -61,10 +81,6 @@ func cliCmdLoad(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	mcurl := config.GetString("mcurl")
-	apikey := config.GetString("apikey")
-	fmt.Println("mcurl", mcurl)
-	fmt.Println("apikey", apikey)
 	client := mcapi.NewClient(mcurl)
 	client.APIKey = apikey
 
