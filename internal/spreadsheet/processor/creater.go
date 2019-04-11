@@ -75,7 +75,7 @@ func (c *Creater) createWorkflowSteps(wp *WorkflowProcess) error {
 		// Going to need to keep track of the samples so we know what the inputs are
 		if wp.Process == nil {
 			// Create the process
-			p, err := c.createProcessWithAttrs(wp.Worksheet, wp.Worksheet.Samples[0].ProcessAttrs)
+			p, err := c.createProcessWithAttrs(wp.Worksheet, wp.Samples[0].ProcessAttrs)
 			if err != nil {
 				return err
 			}
