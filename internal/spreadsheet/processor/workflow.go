@@ -70,6 +70,12 @@ type WorkflowProcess struct {
 	// The worksheet that this process came from
 	Worksheet *model.Worksheet
 
+	// Unique Process Key
+	Key string
+
+	// Sample that this process was computed for
+	SampleName string
+
 	// All the samples in the worksheet that involve this process. Remember that there are process attributes
 	// attached to these samples. All the samples in this list will have the same process attributes.
 	Samples []*model.Sample
@@ -149,6 +155,8 @@ func (w *Workflow) createUniqueProcessesMap(worksheets []*model.Worksheet) {
 			if wp, ok := w.uniqueProcessInstances[key]; !ok {
 				// There is no instance for this process so create it and insert it into uniqueProcessInstances
 				wp := newWorkflowProcess()
+				wp.SampleName = sample.Name
+				wp.Key = key
 				wp.Worksheet = worksheet
 				wp.Samples = append(wp.Samples, sample)
 				w.uniqueProcessInstances[key] = wp
