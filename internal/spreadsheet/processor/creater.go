@@ -93,14 +93,12 @@ func (c *Creater) createWorkflowSteps(wp *WorkflowProcess) error {
 					// Add measurements
 					worksheetSample := c.findSample(s, wp.Worksheet.Samples)
 					if worksheetSample != nil {
-						if err := c.addAdditionalMeasurements(wp.Process.ID, s.ID, s.PropertySetID, worksheetSample); err != nil {
+						if err := c.addMeasurements(wp.Process.ID, s.ID, s.PropertySetID, worksheetSample); err != nil {
 							return err
 						}
 					}
 				}
 			}
-
-			// TODO: Add measurements to process
 		}
 
 	}
@@ -170,29 +168,49 @@ func (c *Creater) createSample(sample *model.Sample) (*mcapi.Sample, error) {
 	return c.client.CreateSample(c.ProjectID, c.ExperimentID, sample.Name, attrs)
 }
 
-// addAdditionalMeasurements adds measurements from the model.Sample to the server side process and sample/propertset.
+// addMeasurements adds measurements from the model.Sample to the server side process and sample/property set.
 // In the workflow a model.Sample contains all the measurements for a sample reference in the spreadsheet.
-func (c *Creater) addAdditionalMeasurements(processID string, sampleID, propertySetID string, sample *model.Sample) error {
-	var attrs []mcapi.SampleProperty
+func (c *Creater) addMeasurements(processID string, sampleID, propertySetID string, sample *model.Sample) error {
+	attrs := c.createAttributeMeasurements(sample.Attributes)
+
 	sm := mcapi.SampleMeasurements{
 		SampleID:      sampleID,
 		PropertySetID: propertySetID,
+		Attributes:    attrs,
 	}
-	for _, sampleAttr := range sample.Attributes {
-		attr := mcapi.SampleProperty{
-			Name: sampleAttr.Name,
-		}
-		m := mcapi.Measurement{
-			Unit:  sampleAttr.Unit,
-			Value: sampleAttr.Value["value"],
-			OType: "object",
-		}
-		attr.Measurements = append(attr.Measurements, m)
-		attrs = append(attrs, attr)
-	}
-	sm.Attributes = attrs
+
 	_, err := c.client.AddMeasurementsToSampleInProcess(c.ProjectID, c.ExperimentID, processID, sm)
 	return err
+}
+
+// createAttributeMeasurements iterates over the list of sample attributes creating a single
+// SampleProperty for each attribute and merging the other attributes that match that name
+// as separate measurements of that attribute.
+func (c *Creater) createAttributeMeasurements(attrs []*model.Attribute) []mcapi.SampleProperty {
+	samplePropertiesMap := make(map[string]*mcapi.SampleProperty)
+	for _, attr := range attrs {
+		sp, ok := samplePropertiesMap[attr.Name]
+		if !ok {
+			sp = &mcapi.SampleProperty{Name: attr.Name}
+			samplePropertiesMap[attr.Name] = sp
+		}
+
+		m := mcapi.Measurement{
+			Unit:  attr.Unit,
+			Value: attr.Value["value"],
+			OType: "object",
+		}
+
+		sp.Measurements = append(sp.Measurements, m)
+	}
+
+	var sampleProperties []mcapi.SampleProperty
+
+	for key := range samplePropertiesMap {
+		sampleProperties = append(sampleProperties, *samplePropertiesMap[key])
+	}
+
+	return sampleProperties
 }
 
 // findSample finds the model.Sample that corresponds to the server side sample. Matching is based
