@@ -3,9 +3,8 @@ package spreadsheet
 /*
  * keywords contains the keyword identifier for different attributes. A keyword
  * is added to a header cell to identify the attribute type. For example:
- *    file:Measurements
- * In the above example the file: is the keyword and Measurements tells the user
- * more about what the file contains.
+ *    process:Grain Size
+ * In the above example the process: is the keyword and Grain Size is the Attribute.
  */
 
 import (
@@ -33,19 +32,9 @@ var FileAttributeKeywords = map[string]bool{
 	"files": true,
 }
 
-func hasSampleAttributeKeyword(cell string) bool {
-	return findIn(cell, SampleAttributeKeywords)
-}
-
-func hasProcessAttributeKeyword(cell string) bool {
-	return findIn(cell, ProcessAttributeKeywords)
-}
-
-func hasFileAttributeKeyword(cell string) bool {
-	return findIn(cell, FileAttributeKeywords)
-}
-
-func columeAttributeTypeFromKeyword(cell string) ColumnAttributeType {
+// columnAttribyteTypeFromKeyword takes a cell, checks if it has a keyword
+// in it and if so returns the keyword type.
+func columnAttributeTypeFromKeyword(cell string) ColumnAttributeType {
 	// If you add a new Attribute Keyword then don't forget to update
 	// processHeaderRow() and processSampleRow() case statements in
 	// loader.go to handle those new keywords.
@@ -64,7 +53,27 @@ func columeAttributeTypeFromKeyword(cell string) ColumnAttributeType {
 	return UnknownAttributeColumn
 }
 
-func findIn(cell string, keywords map[string]bool) bool {
+// hasSampleAttributeKeyword return true if the cell contains a keyword
+// from the SampleAttributeKeywords.
+func hasSampleAttributeKeyword(cell string) bool {
+	return hasKeywordInCell(cell, SampleAttributeKeywords)
+}
+
+// hasProcessAttributeKeyword returns true if the cell contains
+// a keyword from the ProcessAttributesKeywords.
+func hasProcessAttributeKeyword(cell string) bool {
+	return hasKeywordInCell(cell, ProcessAttributeKeywords)
+}
+
+// hasFileAttributeKeyword returns true if the cell contains
+// a keyword from the FileAttributesKeywords.
+func hasFileAttributeKeyword(cell string) bool {
+	return hasKeywordInCell(cell, FileAttributeKeywords)
+}
+
+// hasKeywordInCell checks if the cell contains a keyword from the
+// given keyword map.
+func hasKeywordInCell(cell string, keywords map[string]bool) bool {
 	cell = strings.ToLower(cell)
 	i := strings.Index(cell, ":")
 	if i == -1 {
@@ -76,10 +85,14 @@ func findIn(cell string, keywords map[string]bool) bool {
 	return ok
 }
 
+// AddSampleKeyword adds a new keyword to the SampleAttributeKeywords map.
 func AddSampleKeyword(keyword string) {
 	SampleAttributeKeywords[keyword] = true
 }
 
+// SetProcessKeywords overrides the current ProcessAttributeKeywords with the
+// new set of keywords. It clears the current set of keywords before
+// setting the new set.
 func SetSampleKeywords(keywords ...string) {
 	// Clear SampleAttributeKeywords
 	SampleAttributeKeywords = make(map[string]bool)
@@ -90,10 +103,14 @@ func SetSampleKeywords(keywords ...string) {
 	}
 }
 
+// AddProcessKeyword adds a new keyword to the ProcessAttributeKeywords map.
 func AddProcessKeyword(keyword string) {
 	ProcessAttributeKeywords[keyword] = true
 }
 
+// SetProcessKeywords overrides the current ProcessAttributeKeywords with the
+// new set of keywords. It clears the current set of keywords before
+// setting the new set.
 func SetProcessKeywords(keywords ...string) {
 	// Clear ProcessAttributeKeywords
 	ProcessAttributeKeywords = make(map[string]bool)
@@ -104,10 +121,14 @@ func SetProcessKeywords(keywords ...string) {
 	}
 }
 
+// AddFileKeyword adds a new keyword to the FileAttributeKeywords map.
 func AddFileKeyword(keyword string) {
 	FileAttributeKeywords[keyword] = true
 }
 
+// SetFileKeywords overrides the current FileAttributeKeywords with the
+// new set of keywords. It clears the current set of keywords before
+// setting the new set.
 func SetFileKeywords(keywords ...string) {
 	// Clear FileAttributeKeywords
 	FileAttributeKeywords = make(map[string]bool)
@@ -118,6 +139,8 @@ func SetFileKeywords(keywords ...string) {
 	}
 }
 
+// ValidateKeywords goes through the ProcessAttributeKeywords, SampleAttributeKeywords,
+// and FileAttributeKeywords
 func ValidateKeywords() error {
 	switch {
 	case len(ProcessAttributeKeywords) == 0:

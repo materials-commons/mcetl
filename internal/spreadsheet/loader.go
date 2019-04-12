@@ -137,7 +137,7 @@ func (r *rowProcessor) processHeaderRow(row *excelize.Rows) {
 		// If you add a new type of keyword then don't forget to modify processSampleRow() case statement to handle
 		// that keyword.
 
-		switch columeAttributeTypeFromKeyword(colCell) {
+		switch columnAttributeTypeFromKeyword(colCell) {
 		case ProcessAttributeColumn:
 			name, unit := cell2NameAndUnit(colCell)
 			attr := model.NewAttribute(name, unit, column)
