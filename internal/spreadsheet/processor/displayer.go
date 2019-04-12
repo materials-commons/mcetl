@@ -48,7 +48,6 @@ func (d *Displayer) printWorksheets(worksheets []*model.Worksheet) {
 				fmt.Printf("%s%s\n", spaces(10), file.Path)
 			}
 		}
-		//fmt.Println("")
 	}
 }
 
