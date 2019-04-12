@@ -326,28 +326,28 @@ func cell2Filepath(cell string) string {
 	return cell
 }
 
-// validateParents goes through the list of samples and checks each of their
-// Parent attributes. If Parent is not blank then it must contain a reference
-// to a known process. Additionally that process cannot be the current process.
-// This determination is done by name. Remember processes have the name of their
-// worksheet, so we check that a non blank Parent is equal to a known process
-// that isn't the process the sample is in. validateParent returns a multierror
-// containing all the errors encountered.
-func validateParents(processes []*model.Worksheet) error {
-	knownProcesses := createKnownProcessesMap(processes)
+// validateParents goes through all the samples in the worksheets and checks
+// each of their Parent attributes. If Parent is not blank then it must contain
+// a reference to a known process. Additionally that process cannot be the
+// current process. This determination is done by name. Remember processes have
+// the name of their worksheet, so we check that a non blank Parent is equal to
+// a known process that isn't the process the sample is in. validateParent returns
+// a multierror containing all the errors encountered.
+func validateParents(worksheets []*model.Worksheet) error {
+	knownProcesses := createKnownProcessesMap(worksheets)
 	var foundErrors *multierror.Error
-	for _, process := range processes {
-		for _, sample := range process.Samples {
+	for _, worksheet := range worksheets {
+		for _, sample := range worksheet.Samples {
 			if sample.Parent != "" {
 				switch {
-				case sample.Parent == process.Name:
-					e := fmt.Errorf("process '%s' has Sample '%s' who's parent is the current process", process.Name, sample.Name)
+				case sample.Parent == worksheet.Name:
+					e := fmt.Errorf("process '%s' has Sample '%s' who's parent is the current process", worksheet.Name, sample.Name)
 					foundErrors = multierror.Append(foundErrors, e)
 				default:
 					if _, ok := knownProcesses[sample.Parent]; !ok {
 						// Parent is set to a non-existent process
 						e := fmt.Errorf("sample '%s' in process '%s' has parent '%s' that does not exist",
-							sample.Name, process.Name, sample.Parent)
+							sample.Name, worksheet.Name, sample.Parent)
 						foundErrors = multierror.Append(foundErrors, e)
 					}
 				}
