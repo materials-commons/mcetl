@@ -12,14 +12,6 @@ import (
 	"github.com/materials-commons/mcetl/internal/spreadsheet/model"
 )
 
-type ColumnAttribute int
-
-const (
-	SampleAttributeColumn = iota + 1
-	ProcessAttributeColumn
-	FileAttributeColumn
-)
-
 // Load will load the given excel file. This assumes that each process is in a separate
 // worksheet and the process will take on the name of the worksheet. The way that Load
 // works is it transforms the spreadsheet into a data structure that can be more easily
@@ -100,7 +92,7 @@ func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model
 
 type rowProcessor struct {
 	worksheet  *model.Worksheet
-	columnType map[int]ColumnAttribute
+	columnType map[int]ColumnAttributeType
 	converter  *cellConverter
 }
 
@@ -111,7 +103,7 @@ func newRowProcessor(processName string, index int) *rowProcessor {
 			Index: index,
 		},
 		converter:  newCellConverter(),
-		columnType: make(map[int]ColumnAttribute),
+		columnType: make(map[int]ColumnAttributeType),
 	}
 }
 
@@ -161,59 +153,87 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) error 
 	for _, colCell := range row.Columns() {
 		colCell = strings.TrimSpace(colCell)
 		column++
+
+		// Go through each column and capture its value. Columns 1 and 2 are special.
+		// Empty cell handling is column specific. If column 1 cell is blank then we
+		// skip the entire row. Column 2 is allowed to have blank columns. The rest
+		// of the columns can have blank cells, but if they are blank we just skip
+		// processing them. Since the rest of the columns represent various types of
+		// attributes (process, sample or file) skipping blank cells prevents empty
+		// attributes from being created on the server.
+
 		if column == 1 {
 			// Sample
+			if colCell == "" {
+				// No sample is listed in this column. Just skip the entire row.
+				return nil
+			}
 			currentSample = model.NewSample(colCell, rowIndex)
 			r.worksheet.AddSample(currentSample)
 		} else if column == 2 {
 			// parent worksheet
 			currentSample.Parent = colCell
 		} else {
-			// Column 1 is sample, column 2 is parent worksheet.
-			// All the other columns are attributes. At this point the header row has been processed (in processHeaderRow()).
-			// The rowProcessor identified each of the header columns by their type (process, sample or file attribute). As
-			// we walk through the columns that make up a row we refer back to the rowProcessor columnType which will tell
-			// us which type of attribute we are looking.
+			// Process, Sample or File attribute
+
+			// Column 1 is sample, column 2 is parent worksheet. All the other columns are attributes. At this point
+			// the header row has been processed (in processHeaderRow()). The rowProcessor identified each of the
+			// header columns by their type (process, sample or file attribute). As we walk through the columns that
+			// make up a row we refer back to the rowProcessor columnType which will tell us which type of attribute
+			// we are looking at.
 			colType, ok := r.columnType[column]
+
+			if colCell == "" {
+				// This column cell is blank so skip processing. This way empty attributes
+				// are not tracked and loaded onto the server.
+				fmt.Printf("At Row %d, column %d, column type %s cell is blank\n", rowIndex, column, colType)
+				continue
+			}
+
 			switch {
 			case !ok:
 				// Couldn't find column type. This should never happen. Just ignore it for now.
+				fmt.Printf("At Row %d, column %d unknown column type\n", rowIndex, column)
 				continue
 
 			case colType == SampleAttributeColumn:
 				// This column is a sample attribute. Look up the given header information (stored in the
 				// worksheet.SampleAttrs) so that we know which attribute we are looking at for this cell.
+				// Ignore cells that are blank.
 				attr := findAttr(r.worksheet.SampleAttrs, column)
 				sampleAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
-				if colCell != "" {
-					// Cell is not blank so store the value
-					if val, err := r.converter.cellToJSONMap(colCell); err != nil {
-						errDesc := fmt.Sprintf("Error converting cell in worksheet %s: row: %d, column: %d with value %s",
-							r.worksheet.Name, rowIndex, column, colCell)
-						return errors.Wrapf(err, errDesc)
-					} else {
-						sampleAttr.Value = val
-					}
+
+				if val, err := r.converter.cellToJSONMap(colCell); err != nil {
+					errDesc := fmt.Sprintf("Error converting cell in worksheet %s: row: %d, column: %d with value %s",
+						r.worksheet.Name, rowIndex, column, colCell)
+					return errors.Wrapf(err, errDesc)
+				} else {
+					sampleAttr.Value = val
 				}
+
 				currentSample.AddAttribute(sampleAttr)
+
 			case colType == ProcessAttributeColumn:
 				// This column is a process attribute. As above look up the header so we know the attribute
-				// associated with this cell.
+				// associated with this cell. Ignore cells that are blank.
 				attr := findAttr(r.worksheet.ProcessAttrs, column)
 				processAttr := model.NewAttribute(attr.Name, attr.Unit, attr.Column)
-				if colCell != "" {
-					// Cell is not blank so store the value
-					if val, err := r.converter.cellToJSONMap(colCell); err != nil {
-						errDesc := fmt.Sprintf("Error converting cell in worksheet %s: row: %d, column: %d with value '%s'",
-							r.worksheet.Name, rowIndex, column, colCell)
-						return errors.Wrapf(err, errDesc)
-					} else {
-						processAttr.Value = val
-					}
+
+				if val, err := r.converter.cellToJSONMap(colCell); err != nil {
+					errDesc := fmt.Sprintf("Error converting cell in worksheet %s: row: %d, column: %d with value '%s'",
+						r.worksheet.Name, rowIndex, column, colCell)
+					return errors.Wrapf(err, errDesc)
+				} else {
+					processAttr.Value = val
 				}
+
 				currentSample.AddProcessAttribute(processAttr)
+
 			case colType == FileAttributeColumn:
 				currentSample.AddFile(cell2Filepath(colCell), column)
+
+			default:
+				fmt.Printf("cell with unknown header type %s\n", colCell)
 			}
 		}
 	}
