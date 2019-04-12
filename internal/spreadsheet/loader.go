@@ -71,7 +71,7 @@ func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model
 	rowProcessor := newRowProcessor(worksheetName, index)
 	row := 0
 
-	// First row is the header row that contains all the attributes, process this first
+	// First row is the header row that contains all the attributes. We process this first
 	// so that we don't have to special case the loop to check for the first row each time
 	if rows.Next() {
 		row++
@@ -90,10 +90,18 @@ func loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model
 	return rowProcessor.worksheet, nil
 }
 
+// rowProcessor handles processing of each row of a worksheet
 type rowProcessor struct {
-	worksheet  *model.Worksheet
+	// worksheet is the worksheet to load the excel worksheet into
+	worksheet *model.Worksheet
+
+	// columnType is built while processing the header row. It maps each
+	// column to its column type (process attribute, sample attribute or file)
 	columnType map[int]ColumnAttributeType
-	converter  *cellConverter
+
+	// converter is used to convert sample or process attribute cells that
+	// aren't blank into their relevant type (float, object, int, etc...)
+	converter *cellConverter
 }
 
 func newRowProcessor(processName string, index int) *rowProcessor {
@@ -121,19 +129,29 @@ func (r *rowProcessor) processHeaderRow(row *excelize.Rows) {
 			continue
 		}
 
-		if hasProcessAttributeKeyword(colCell) {
+		if colCell == "" {
+			// blank cell so nothing to process
+			continue
+		}
+
+		// If you add a new type of keyword then don't forget to modify processSampleRow() case statement to handle
+		// that keyword.
+
+		switch columeAttributeTypeFromKeyword(colCell) {
+		case ProcessAttributeColumn:
 			name, unit := cell2NameAndUnit(colCell)
 			attr := model.NewAttribute(name, unit, column)
 			r.columnType[column] = ProcessAttributeColumn
 			r.worksheet.AddProcessAttr(attr)
-		} else if hasSampleAttributeKeyword(colCell) {
+		case SampleAttributeColumn:
 			name, unit := cell2NameAndUnit(colCell)
 			attr := model.NewAttribute(name, unit, column)
 			r.columnType[column] = SampleAttributeColumn
 			r.worksheet.AddSampleAttr(attr)
-		} else if hasFileAttributeKeyword(colCell) {
-			// ignore for the moment
+		case FileAttributeColumn:
 			r.columnType[column] = FileAttributeColumn
+		default:
+			fmt.Printf("Heading column %d with value %s has no keyword to identify its type\n", column, colCell)
 		}
 	}
 }
@@ -164,6 +182,7 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) error 
 
 		if column == 1 {
 			// Sample
+
 			if colCell == "" {
 				// No sample is listed in this column. Just skip the entire row.
 				return nil
@@ -192,7 +211,7 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) error 
 
 			switch {
 			case !ok:
-				// Couldn't find column type. This should never happen. Just ignore it for now.
+				// Couldn't find column type. This means the spreadsheet contains header columns without keywords.
 				fmt.Printf("At Row %d, column %d unknown column type\n", rowIndex, column)
 				continue
 
@@ -233,7 +252,10 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) error 
 				currentSample.AddFile(cell2Filepath(colCell), column)
 
 			default:
-				fmt.Printf("cell with unknown header type %s\n", colCell)
+				// If we are here then what happened is that a new column type was created and added
+				// into processHeaderRow(), but this case statement wasn't extended to handle that
+				// column type.
+				fmt.Printf("Bug - processHeaderRow() contains a new column type that isn't in processSampleRow. Cell with unknown header type %s, column %d\n", colCell, column)
 			}
 		}
 	}

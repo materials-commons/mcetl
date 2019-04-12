@@ -91,6 +91,7 @@ func cliCmdLoad(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	// add baseDir to all file entries in the worksheets
 	addBaseDirToFilePaths(baseDir, worksheets)
 
 	client := mcapi.NewClient(mcurl)
@@ -102,6 +103,11 @@ func cliCmdLoad(cmd *cobra.Command, args []string) {
 	}
 }
 
+// addBaseDirToFilePaths goes through all the worksheets and their associated
+// samples, for each sample it goes through the list of files and appends the
+// baseDir to those entries. File entries in a spreadsheet are relative to the
+// location of the spreadsheet. The baseDir represents this path within the
+// context of the project on the server.
 func addBaseDirToFilePaths(baseDir string, worksheets []*model.Worksheet) {
 	for _, worksheet := range worksheets {
 		for _, sample := range worksheet.Samples {

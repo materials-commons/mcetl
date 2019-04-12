@@ -6,6 +6,7 @@ const (
 	SampleAttributeColumn = iota + 1
 	ProcessAttributeColumn
 	FileAttributeColumn
+	UnknownAttributeColumn
 )
 
 func (c ColumnAttributeType) String() string {

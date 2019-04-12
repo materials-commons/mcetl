@@ -45,6 +45,25 @@ func hasFileAttributeKeyword(cell string) bool {
 	return findIn(cell, FileAttributeKeywords)
 }
 
+func columeAttributeTypeFromKeyword(cell string) ColumnAttributeType {
+	// If you add a new Attribute Keyword then don't forget to update
+	// processHeaderRow() and processSampleRow() case statements in
+	// loader.go to handle those new keywords.
+	if hasProcessAttributeKeyword(cell) {
+		return ProcessAttributeColumn
+	}
+
+	if hasSampleAttributeKeyword(cell) {
+		return SampleAttributeColumn
+	}
+
+	if hasFileAttributeKeyword(cell) {
+		return FileAttributeColumn
+	}
+
+	return UnknownAttributeColumn
+}
+
 func findIn(cell string, keywords map[string]bool) bool {
 	cell = strings.ToLower(cell)
 	i := strings.Index(cell, ":")
