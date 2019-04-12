@@ -3,6 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+
+	"github.com/materials-commons/mcetl/internal/spreadsheet/model"
 
 	"github.com/hashicorp/go-multierror"
 
@@ -28,10 +31,12 @@ func init() {
 	loadCmd.Flags().StringP("experiment-name", "n", "", "Name of experiment to create")
 	loadCmd.Flags().StringP("mcurl", "u", "http://localhost:5016/api", "URL for the API service")
 	loadCmd.Flags().StringP("apikey", "k", "", "apikey to pass in REST API calls")
+	loadCmd.Flags().StringP("project-base-dir", "d", "", "project base dir on server to look for files")
 }
 
 func cliCmdLoad(cmd *cobra.Command, args []string) {
 	var (
+		baseDir   string
 		file      string
 		projectId string
 		name      string
@@ -48,6 +53,11 @@ func cliCmdLoad(cmd *cobra.Command, args []string) {
 	}
 
 	if name, err = cmd.Flags().GetString("experiment-name"); err != nil {
+		fmt.Println("error", err)
+		os.Exit(1)
+	}
+
+	if baseDir, err = cmd.Flags().GetString("project-base-dir"); err != nil {
 		fmt.Println("error", err)
 		os.Exit(1)
 	}
@@ -70,7 +80,7 @@ func cliCmdLoad(cmd *cobra.Command, args []string) {
 	}
 	fmt.Println("Using apikey:", apikey)
 
-	processes, err := spreadsheet.Load(file)
+	worksheets, err := spreadsheet.Load(file)
 	if err != nil {
 		fmt.Println("Loading spreadsheet failed:")
 		if merr, ok := err.(*multierror.Error); ok {
@@ -81,11 +91,23 @@ func cliCmdLoad(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	addBaseDirToFilePaths(baseDir, worksheets)
+
 	client := mcapi.NewClient(mcurl)
 	client.APIKey = apikey
 
-	if err := spreadsheet.Create(projectId, name, client).Apply(processes); err != nil {
+	if err := spreadsheet.Create(projectId, name, client).Apply(worksheets); err != nil {
 		fmt.Println("Unable to process spreadsheet:", err)
 		os.Exit(1)
+	}
+}
+
+func addBaseDirToFilePaths(baseDir string, worksheets []*model.Worksheet) {
+	for _, worksheet := range worksheets {
+		for _, sample := range worksheet.Samples {
+			for _, file := range sample.Files {
+				file.Path = filepath.Join(baseDir, file.Path)
+			}
+		}
 	}
 }
