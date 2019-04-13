@@ -35,6 +35,7 @@ any ETL operations on the spreadsheets.`,
 func init() {
 	rootCmd.AddCommand(checkCmd)
 	checkCmd.Flags().StringP("file", "f", "", "Path to the excel spreadsheet")
+	checkCmd.Flags().IntP("header-row", "r", 0, "Row to start reading from")
 }
 
 func cliCmdCheck(cmd *cobra.Command, args []string) {
@@ -44,7 +45,13 @@ func cliCmdCheck(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	processes, err := spreadsheet.Load(file)
+	headerRow, err := cmd.Flags().GetInt("header-row")
+	if err != nil {
+		fmt.Print("error", err)
+		os.Exit(1)
+	}
+
+	processes, err := spreadsheet.Load(file, headerRow)
 	if err != nil {
 		fmt.Println("Loading spreadsheet failed")
 		if merr, ok := err.(*multierror.Error); ok {

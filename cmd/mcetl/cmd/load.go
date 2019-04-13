@@ -33,6 +33,7 @@ func init() {
 	loadCmd.Flags().StringP("mcurl", "u", "http://localhost:5016/api", "URL for the API service")
 	loadCmd.Flags().StringP("apikey", "k", "", "apikey to pass in REST API calls")
 	loadCmd.Flags().StringP("project-base-dir", "d", "", "project base dir on server to look for files")
+	loadCmd.Flags().IntP("header-row", "r", 0, "Row to start reading from")
 }
 
 func cliCmdLoad(cmd *cobra.Command, args []string) {
@@ -60,8 +61,9 @@ func cliCmdLoad(cmd *cobra.Command, args []string) {
 // transforms it into the internal representation of worksheets.
 func loadSpreadsheet(cmd *cobra.Command) ([]*model.Worksheet, error) {
 	var (
-		file string
-		err  error
+		file      string
+		headerRow int
+		err       error
 	)
 
 	if file, err = cmd.Flags().GetString("file"); err != nil {
@@ -69,7 +71,12 @@ func loadSpreadsheet(cmd *cobra.Command) ([]*model.Worksheet, error) {
 		return nil, err
 	}
 
-	worksheets, err := spreadsheet.Load(file)
+	if headerRow, err = cmd.Flags().GetInt("header-row"); err != nil {
+		fmt.Println("error", err)
+		return nil, err
+	}
+
+	worksheets, err := spreadsheet.Load(file, headerRow)
 	if err != nil {
 		printLoadSpreadsheetErrors(err)
 		return nil, errors.Errorf("failed loading file")
