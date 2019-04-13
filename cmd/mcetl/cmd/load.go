@@ -155,7 +155,7 @@ func createWorkflowFromWorksheets(cmd *cobra.Command, client *mcapi.Client, work
 		return err
 	}
 
-	// Create the server side representation of the workflow from the spreadsheet
+	// Create the server side representation of the workflow from the worksheets
 	if err := spreadsheet.Create(projectId, experimentName, client).Apply(worksheets); err != nil {
 		fmt.Println("Unable to process spreadsheet:", err)
 		return err
