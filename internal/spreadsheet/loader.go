@@ -14,6 +14,8 @@ import (
 // worksheet and the process will take on the name of the worksheet. The way that Load
 // works is it transforms the spreadsheet into a data structure that can be more easily
 // understood and worked with. This is encompassed in the model.Worksheet data structure.
+// The header row parameter is the starting row for the header. Rows before that will
+// be skipped.
 func Load(path string, headerRow int) ([]*model.Worksheet, error) {
 	var worksheets []*model.Worksheet
 
