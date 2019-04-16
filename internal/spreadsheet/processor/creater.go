@@ -4,6 +4,8 @@ package processor
 //
 
 import (
+	"fmt"
+
 	"github.com/materials-commons/gomcapi"
 	"github.com/materials-commons/mcetl/internal/spreadsheet/model"
 )
@@ -23,15 +25,20 @@ type Creater struct {
 	// for many of the mcapi REST calls.
 	ExperimentID string
 
+	Count int
+
+	ByCallCounts map[string]int
+
 	client *mcapi.Client
 }
 
 func NewCreater(projectID, name, description string, client *mcapi.Client) *Creater {
 	return &Creater{
-		ProjectID:   projectID,
-		Name:        name,
-		Description: description,
-		client:      client,
+		ProjectID:    projectID,
+		Name:         name,
+		Description:  description,
+		client:       client,
+		ByCallCounts: make(map[string]int),
 	}
 }
 
@@ -52,6 +59,9 @@ func (c *Creater) Apply(worksheets []*model.Worksheet) error {
 			return err
 		}
 	}
+
+	fmt.Println("Total calls:", c.Count)
+	fmt.Printf("%#v\n", c.ByCallCounts)
 	return nil
 }
 
@@ -84,21 +94,43 @@ func (c *Creater) createWorkflowSteps(wp *WorkflowProcess) error {
 
 			// Add the samples to the process
 			inputSamples := c.getInputSamples(wp)
-			for _, sample := range inputSamples {
-				if s, err := c.addSampleToProcess(wp.Process.ID, sample); err != nil {
-					return err
-				} else {
-					wp.Out = append(wp.Out, s)
-
-					// Add measurements
-					worksheetSample := c.findSample(s, wp.Worksheet.Samples)
-					if worksheetSample != nil {
+			fmt.Printf("   After createProcessWithAttrs there are %d samples to add\n", len(inputSamples))
+			if samples, err := c.addSamplesToProcess(wp.Process.ID, inputSamples); err != nil {
+				return err
+			} else {
+				wp.Out = append(wp.Out, samples...)
+				for _, sample := range inputSamples {
+					worksheetSample := c.findSampleInWorksheet(sample.Name, wp.Worksheet.Samples)
+					s := c.findSampleFromServer(sample.Name, wp.Out)
+					if worksheetSample != nil && s != nil {
+						fmt.Printf("worksheetSample = %#v\n", worksheetSample)
+						fmt.Printf("s = %#v\n", s)
 						if err := c.addMeasurements(wp.Process.ID, s.ID, s.PropertySetID, worksheetSample); err != nil {
+							fmt.Println("addMeasurements failed", err)
 							return err
 						}
 					}
 				}
 			}
+
+			//for _, sample := range inputSamples {
+			//	if s, err := c.addSampleToProcess(wp.Process.ID, sample); err != nil {
+			//		return err
+			//	} else {
+			//		wp.Out = append(wp.Out, s)
+			//
+			//		fmt.Printf("s = %#v, sample = %#v\n", s, sample)
+			//		// Add measurements
+			//		worksheetSample := c.findSampleInWorksheet(sample.Name, wp.Worksheet.Samples)
+			//		if worksheetSample != nil {
+			//			fmt.Printf("worksheetSample = %#v\n", worksheetSample)
+			//			if err := c.addMeasurements(wp.Process.ID, s.ID, s.PropertySetID, worksheetSample); err != nil {
+			//				fmt.Println("addMeasurements failed", err)
+			//				return err
+			//			}
+			//		}
+			//	}
+			//}
 		}
 
 	}
@@ -115,8 +147,16 @@ func (c *Creater) createWorkflowSteps(wp *WorkflowProcess) error {
 	return nil
 }
 
+func (c *Creater) AddCount(what string) {
+	value := c.ByCallCounts[what]
+	value++
+	c.ByCallCounts[what] = value
+}
+
 // createExperiment will create a new experiment in the given project
 func (c *Creater) createExperiment() error {
+	c.Count++
+	c.AddCount("createExperiment")
 	experiment, err := c.client.CreateExperiment(c.ProjectID, c.Name, c.Description)
 	if err != nil {
 		return err
@@ -128,6 +168,9 @@ func (c *Creater) createExperiment() error {
 
 // createProcessWithAttrs will create a new process with the given set of process attributes.
 func (c *Creater) createProcessWithAttrs(process *model.Worksheet, attrs []*model.Attribute) (*mcapi.Process, error) {
+	c.Count++
+	c.AddCount("createProcessWithAttrs")
+	//return &mcapi.Process{}, nil
 	setup := mcapi.Setup{
 		Name:      "Conditions",
 		Attribute: "conditions",
@@ -151,6 +194,9 @@ func (c *Creater) createProcessWithAttrs(process *model.Worksheet, attrs []*mode
 
 // createSample creates a new sample in the project on the server.
 func (c *Creater) createSample(sample *model.Sample) (*mcapi.Sample, error) {
+	c.Count++
+	c.AddCount("createSample")
+	//return &mcapi.Sample{}, nil
 	var attrs []mcapi.Property
 	for _, attr := range sample.Attributes {
 		property := mcapi.Property{
@@ -171,6 +217,9 @@ func (c *Creater) createSample(sample *model.Sample) (*mcapi.Sample, error) {
 // addMeasurements adds measurements from the model.Sample to the server side process and sample/property set.
 // In the workflow a model.Sample contains all the measurements for a sample reference in the spreadsheet.
 func (c *Creater) addMeasurements(processID string, sampleID, propertySetID string, sample *model.Sample) error {
+	c.Count++
+	c.AddCount("addMeasurements")
+	//return nil
 	attrs := c.createAttributeMeasurements(sample.Attributes)
 
 	sm := mcapi.SampleMeasurements{
@@ -179,7 +228,7 @@ func (c *Creater) addMeasurements(processID string, sampleID, propertySetID stri
 		Attributes:    attrs,
 	}
 
-	_, err := c.client.AddMeasurementsToSampleInProcess(c.ProjectID, c.ExperimentID, processID, sm)
+	_, err := c.client.AddMeasurementsToSampleInProcess(c.ProjectID, c.ExperimentID, processID, false, sm)
 	return err
 }
 
@@ -215,9 +264,19 @@ func (c *Creater) createAttributeMeasurements(attrs []*model.Attribute) []mcapi.
 
 // findSample finds the model.Sample that corresponds to the server side sample. Matching is based
 // on name as each sample in the worksheets will have a unique name.
-func (c *Creater) findSample(createdSample *mcapi.Sample, samples []*model.Sample) *model.Sample {
+func (c *Creater) findSampleInWorksheet(sampleName string, samples []*model.Sample) *model.Sample {
 	for _, sample := range samples {
-		if sample.Name == createdSample.Name {
+		if sample.Name == sampleName {
+			return sample
+		}
+	}
+
+	return nil
+}
+
+func (c *Creater) findSampleFromServer(sampleName string, samples []*mcapi.Sample) *mcapi.Sample {
+	for _, sample := range samples {
+		if sample.Name == sampleName {
 			return sample
 		}
 	}
@@ -228,14 +287,49 @@ func (c *Creater) findSample(createdSample *mcapi.Sample, samples []*model.Sampl
 // addSampleToProcess will add the sample to the process on the server. It hides the details of constructing
 // the go-mcapi call.
 func (c *Creater) addSampleToProcess(processID string, sample *mcapi.Sample) (*mcapi.Sample, error) {
+	c.Count++
+	c.AddCount("addSampleToProcess")
+	//return &mcapi.Sample{}, nil
 	connect := mcapi.ConnectSampleToProcess{
 		ProcessID:     processID,
 		SampleID:      sample.ID,
 		PropertySetID: sample.PropertySetID,
 		Transform:     true,
 	}
-	s, err := c.client.AddSampleToProcess(c.ProjectID, c.ExperimentID, connect)
+	s, err := c.client.AddSampleToProcess(c.ProjectID, c.ExperimentID, false, connect)
 	return s, err
+}
+
+func (c *Creater) addSamplesToProcess(processID string, samples []*mcapi.Sample) ([]*mcapi.Sample, error) {
+	c.Count++
+	c.AddCount("addSamplesToProcess")
+	connect := mcapi.ConnectSamplesToProcess{
+		ProcessID: processID,
+		Transform: true,
+	}
+
+	for _, sample := range samples {
+		fmt.Printf("sample = %#v\n", sample)
+		s := mcapi.SampleToConnect{
+			SampleID:      sample.ID,
+			PropertySetID: sample.PropertySetID,
+			Name:          sample.Name,
+		}
+		connect.Samples = append(connect.Samples, s)
+	}
+
+	updatedSamples, err := c.client.AddSamplesToProcess(c.ProjectID, c.ExperimentID, connect)
+	if err != nil {
+		return nil, err
+	}
+
+	// API call returns []mcapi.Sample, we need to return []*mcapi.Sample
+	var transformUpdatedSamples []*mcapi.Sample
+	for _, sample := range updatedSamples {
+		transformUpdatedSamples = append(transformUpdatedSamples, &sample)
+	}
+
+	return transformUpdatedSamples, nil
 }
 
 // getInputSamples goes to the parent workflow processes and constructs the list
