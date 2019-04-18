@@ -61,6 +61,8 @@ type Workflow struct {
 	// Create Samples are implicitly defined, they aren't directly in the worksheets (that is there is no worksheet
 	// that contains the create samples.
 	uniqueProcessInstances map[string]*WorkflowProcess
+
+	HasParent bool
 }
 
 // WorkflowProcess is a unique process step. Each process step contains all the samples associated with that
@@ -151,7 +153,7 @@ func (w *Workflow) createUniqueProcessesMap(worksheets []*model.Worksheet) {
 		for _, sample := range worksheet.Samples {
 			// Create a unique key for this process. This key is constructed based on the worksheet
 			// name and the process attributes. This allows us to track all the unique process instances.
-			key := makeSampleInstanceKey(sample, worksheet.Name)
+			key := w.makeSampleInstanceKey(sample, worksheet.Name)
 			if wp, ok := w.uniqueProcessInstances[key]; !ok {
 				// There is no instance for this process so create it and insert it into uniqueProcessInstances
 				wp := newWorkflowProcess()
@@ -231,7 +233,7 @@ func (w *Workflow) wireProcessesTogetherFromTo(fromProcess, toProcess *WorkflowP
 
 // findProcessFromSampleInWorksheet creates the unique name to look up a process process in uniqueProcessInstances.
 func (w *Workflow) findProcessFromSampleInWorksheet(sample *model.Sample, worksheetName string) *WorkflowProcess {
-	key := makeSampleInstanceKey(sample, worksheetName)
+	key := w.makeSampleInstanceKey(sample, worksheetName)
 	if instance, ok := w.uniqueProcessInstances[key]; !ok {
 		fmt.Printf("Can't find matching process to wire up %s %#v\n", worksheetName, sample)
 		return nil
@@ -265,7 +267,7 @@ func (w *Workflow) findMatchingEntry(sampleName, worksheetName string, worksheet
 		if worksheet.Name == worksheetName {
 			for _, sample := range worksheet.Samples {
 				if sample.Name == sampleName {
-					key := makeSampleInstanceKey(sample, worksheetName)
+					key := w.makeSampleInstanceKey(sample, worksheetName)
 					if instance, ok := w.uniqueProcessInstances[key]; !ok {
 						return nil
 					} else {
@@ -283,14 +285,16 @@ func (w *Workflow) findMatchingEntry(sampleName, worksheetName string, worksheet
 // is used to store the unique processes. A key is constructed from the sample name and all its
 // process attributes. We then run sha256 on it and get the hex key to create the unique key for
 // that combination.
-func makeSampleInstanceKey(sample *model.Sample, starting string) string {
+func (w *Workflow) makeSampleInstanceKey(sample *model.Sample, starting string) string {
 	key := starting
 	for _, attr := range sample.ProcessAttrs {
 		key = fmt.Sprintf("%s%s%#v", key, attr.Unit, attr.Value)
 	}
 
-	for _, attr := range sample.Attributes {
-		key = fmt.Sprintf("%s%s%#v", key, attr.Unit, attr.Value)
+	if !w.HasParent {
+		for _, attr := range sample.Attributes {
+			key = fmt.Sprintf("%s%s%#v", key, attr.Unit, attr.Value)
+		}
 	}
 
 	key = fmt.Sprintf("%s%s", sample.Name, key)

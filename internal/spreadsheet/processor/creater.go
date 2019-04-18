@@ -25,6 +25,8 @@ type Creater struct {
 	// for many of the mcapi REST calls.
 	ExperimentID string
 
+	HasParent bool
+
 	Count int
 
 	ByCallCounts map[string]int
@@ -51,6 +53,8 @@ func (c *Creater) Apply(worksheets []*model.Worksheet) error {
 
 	// 2. Create the workflow from the worksheets
 	wf := newWorkflow()
+	wf.HasParent = c.HasParent
+
 	wf.constructWorkflow(worksheets)
 
 	// 3. Walk through the workflow creating each of the steps.

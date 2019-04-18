@@ -160,6 +160,7 @@ func createWorkflowFromWorksheets(cmd *cobra.Command, client *mcapi.Client, work
 		projectId      string
 		experimentName string
 		projectName    string
+		hasParent      bool
 		err            error
 	)
 
@@ -178,13 +179,18 @@ func createWorkflowFromWorksheets(cmd *cobra.Command, client *mcapi.Client, work
 		projectId = project.ID
 	}
 
+	if hasParent, err = cmd.Flags().GetBool("has-parent"); err != nil {
+		fmt.Println("error", err)
+		return err
+	}
+
 	if experimentName, err = cmd.Flags().GetString("experiment-name"); err != nil {
 		fmt.Println("error", err)
 		return err
 	}
 
 	// Create the server side representation of the workflow from the worksheets
-	if err := spreadsheet.Create(projectId, experimentName, client).Apply(worksheets); err != nil {
+	if err := spreadsheet.Create(projectId, experimentName, hasParent, client).Apply(worksheets); err != nil {
 		fmt.Println("Unable to process spreadsheet:", err)
 		return err
 	}

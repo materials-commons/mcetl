@@ -12,6 +12,8 @@ type Processor interface {
 
 var Display = processor.NewDisplayer()
 
-func Create(projectID, name string, client *mcapi.Client) *processor.Creater {
-	return processor.NewCreater(projectID, name, "", client)
+func Create(projectID, name string, hasParent bool, client *mcapi.Client) *processor.Creater {
+	c := processor.NewCreater(projectID, name, "", client)
+	c.HasParent = hasParent
+	return c
 }
