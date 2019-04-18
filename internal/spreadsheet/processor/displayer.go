@@ -57,6 +57,7 @@ func (d *Displayer) printWorkflow(worksheets []*model.Worksheet) {
 	wf.constructWorkflow(worksheets)
 	fmt.Println("Create samples:")
 	for _, wp := range wf.root {
+		fmt.Println("at root wp.Samples len =", len(wp.Samples))
 		for _, sample := range wp.Samples {
 			fmt.Printf("%sSample %s\n", spaces(2), sample.Name)
 			d.printWorkflowSteps(4, wp)
@@ -68,7 +69,7 @@ func (d *Displayer) printWorkflowSteps(indent int, wp *WorkflowProcess) {
 	if wp.Worksheet != nil {
 		fmt.Printf("%s%s", spaces(indent), wp.Worksheet.Name)
 	} else {
-		fmt.Printf("%sCreate Sample", spaces(indent))
+		fmt.Printf("%sCreate Sample: %s", spaces(indent), wp.Samples[0].Name)
 	}
 
 	for _, next := range wp.To {

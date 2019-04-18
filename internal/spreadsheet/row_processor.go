@@ -70,7 +70,7 @@ func (r *rowProcessor) processHeaderRow(row *excelize.Rows) {
 		case FileAttributeColumn:
 			r.columnType[column] = FileAttributeColumn
 		default:
-			fmt.Printf("Heading column %d with value %s has no keyword to identify its type\n", column, colCell)
+			fmt.Printf("Worksheet %s heading column %d with value %s has no keyword to identify its type\n", r.worksheet.Name, column, colCell)
 		}
 	}
 }
@@ -124,14 +124,14 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) error 
 			if colCell == "" {
 				// This column cell is blank so skip processing. This way empty attributes
 				// are not tracked and loaded onto the server.
-				fmt.Printf("At Row %d, column %d, column type %s cell is blank\n", rowIndex, column, colType)
+				fmt.Printf("Worksheet %s At Row %d, column %d, column type %s cell is blank\n", r.worksheet.Name, rowIndex, column, colType)
 				continue
 			}
 
 			switch {
 			case !ok:
 				// Couldn't find column type. This means the spreadsheet contains header columns without keywords.
-				fmt.Printf("At Row %d, column %d unknown column type\n", rowIndex, column)
+				fmt.Printf("Worksheet %s At Row %d, column %d unknown column type\n", r.worksheet.Name, rowIndex, column)
 				continue
 
 			case colType == SampleAttributeColumn:
@@ -146,6 +146,7 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) error 
 						r.worksheet.Name, rowIndex, column, colCell)
 					return errors.Wrapf(err, errDesc)
 				} else {
+					fmt.Printf("Converted attr %s cell %s to %v (worksheet %s, row %d, column %d)\n", attr.Name, colCell, val["value"], r.worksheet.Name, rowIndex, column)
 					sampleAttr.Value = val
 				}
 
