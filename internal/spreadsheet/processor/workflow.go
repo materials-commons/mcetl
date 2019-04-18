@@ -289,6 +289,10 @@ func makeSampleInstanceKey(sample *model.Sample, starting string) string {
 		key = fmt.Sprintf("%s%s%#v", key, attr.Unit, attr.Value)
 	}
 
+	for _, attr := range sample.Attributes {
+		key = fmt.Sprintf("%s%s%#v", key, attr.Unit, attr.Value)
+	}
+
 	key = fmt.Sprintf("%s%s", sample.Name, key)
 
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(key)))
