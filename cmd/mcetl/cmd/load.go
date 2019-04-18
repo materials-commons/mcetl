@@ -34,6 +34,7 @@ func init() {
 	loadCmd.Flags().StringP("apikey", "k", "", "apikey to pass in REST API calls")
 	loadCmd.Flags().StringP("project-base-dir", "d", "", "project base dir on server to look for files")
 	loadCmd.Flags().IntP("header-row", "r", 0, "Row to start reading from")
+	loadCmd.Flags().BoolP("has-parent", "t", false, "2nd column is the parent column")
 }
 
 func cliCmdLoad(cmd *cobra.Command, args []string) {
@@ -63,6 +64,7 @@ func loadSpreadsheet(cmd *cobra.Command) ([]*model.Worksheet, error) {
 	var (
 		file      string
 		headerRow int
+		hasParent bool
 		err       error
 	)
 
@@ -76,7 +78,14 @@ func loadSpreadsheet(cmd *cobra.Command) ([]*model.Worksheet, error) {
 		return nil, err
 	}
 
-	worksheets, err := spreadsheet.Load(file, headerRow)
+	if hasParent, err = cmd.Flags().GetBool("has-parent"); err != nil {
+		fmt.Println("error", err)
+		return nil, err
+	}
+
+	loader := spreadsheet.NewLoader(hasParent, headerRow, file)
+
+	worksheets, err := loader.Load()
 	if err != nil {
 		printLoadSpreadsheetErrors(err)
 		return nil, errors.Errorf("failed loading file")

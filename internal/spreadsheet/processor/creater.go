@@ -73,7 +73,6 @@ func (c *Creater) createWorkflowSteps(wp *WorkflowProcess) error {
 		if sample, err := c.createSample(wp.Samples[0]); err != nil {
 			return err
 		} else {
-			fmt.Printf("createSample = %#v\n", sample)
 			wp.Out = append(wp.Out, sample)
 		}
 	} else {
@@ -95,24 +94,6 @@ func (c *Creater) createWorkflowSteps(wp *WorkflowProcess) error {
 
 			// Add the samples to the process
 			inputSamples := c.getInputSamples(wp)
-			fmt.Printf("   After createProcessWithAttrs there are %d samples to add\n", len(inputSamples))
-			//if samples, err := c.addSamplesToProcess(wp.Process.ID, inputSamples); err != nil {
-			//	return err
-			//} else {
-			//	wp.Out = append(wp.Out, samples...)
-			//	for _, sample := range inputSamples {
-			//		worksheetSample := c.findSampleInWorksheet(sample.Name, wp.Worksheet.Samples)
-			//		s := c.findSampleFromServer(sample.Name, wp.Out)
-			//		if worksheetSample != nil && s != nil {
-			//			fmt.Printf("worksheetSample = %#v\n", worksheetSample)
-			//			fmt.Printf("s = %#v\n", s)
-			//			if err := c.addMeasurements(wp.Process.ID, s.ID, s.PropertySetID, worksheetSample); err != nil {
-			//				fmt.Println("addMeasurements failed", err)
-			//				return err
-			//			}
-			//		}
-			//	}
-			//}
 
 			for _, sample := range inputSamples {
 				if s, err := c.addSampleToProcess(wp.Process.ID, sample); err != nil {
@@ -120,13 +101,10 @@ func (c *Creater) createWorkflowSteps(wp *WorkflowProcess) error {
 				} else {
 					wp.Out = append(wp.Out, s)
 
-					fmt.Printf("s = %#v\n sample = %#v\n", s, sample)
 					// Add measurements
 					worksheetSample := c.findSampleInWorksheet(sample.Name, wp.Worksheet.Samples)
 					if worksheetSample != nil {
-						fmt.Printf("worksheetSample = %#v\n", worksheetSample)
 						if err := c.addMeasurements(wp.Process.ID, s.ID, s.PropertySetID, worksheetSample); err != nil {
-							fmt.Println("addMeasurements failed", err)
 							return err
 						}
 					}
@@ -266,7 +244,6 @@ func (c *Creater) createAttributeMeasurements(attrs []*model.Attribute) []mcapi.
 // findSample finds the model.Sample that corresponds to the server side sample. Matching is based
 // on name as each sample in the worksheets will have a unique name.
 func (c *Creater) findSampleInWorksheet(sampleName string, samples []*model.Sample) *model.Sample {
-	fmt.Println("findSampleInWorksheet:", sampleName)
 	for _, sample := range samples {
 		if sample.Name == sampleName {
 			return sample
@@ -311,7 +288,6 @@ func (c *Creater) addSamplesToProcess(processID string, samples []*mcapi.Sample)
 	}
 
 	for _, sample := range samples {
-		fmt.Printf("sample = %#v\n", sample)
 		s := mcapi.SampleToConnect{
 			SampleID:      sample.ID,
 			PropertySetID: sample.PropertySetID,

@@ -14,6 +14,9 @@ type rowProcessor struct {
 	// worksheet is the worksheet to load the excel worksheet into
 	worksheet *model.Worksheet
 
+	// Is column 2 the parent column?
+	HasParent bool
+
 	// columnType is built while processing the header row. It maps each
 	// column to its column type (process attribute, sample attribute or file)
 	columnType map[int]ColumnAttributeType
@@ -23,12 +26,13 @@ type rowProcessor struct {
 	converter *cellConverter
 }
 
-func newRowProcessor(processName string, index int) *rowProcessor {
+func newRowProcessor(worksheetName string, hasParent bool, index int) *rowProcessor {
 	return &rowProcessor{
 		worksheet: &model.Worksheet{
-			Name:  processName,
+			Name:  worksheetName,
 			Index: index,
 		},
+		HasParent:  hasParent,
 		converter:  newCellConverter(),
 		columnType: make(map[int]ColumnAttributeType),
 	}
@@ -108,7 +112,7 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) error 
 			}
 			currentSample = model.NewSample(colCell, rowIndex)
 			r.worksheet.AddSample(currentSample)
-		} else if column == 2 {
+		} else if column == 2 && r.HasParent {
 			// parent worksheet
 			currentSample.Parent = colCell
 		} else {

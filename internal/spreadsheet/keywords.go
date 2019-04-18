@@ -32,25 +32,31 @@ var FileAttributeKeywords = map[string]bool{
 	"files": true,
 }
 
-// columnAttribyteTypeFromKeyword takes a cell, checks if it has a keyword
+// columnAttributeTypeFromKeyword takes a cell, checks if it has a keyword
 // in it and if so returns the keyword type.
 func columnAttributeTypeFromKeyword(cell string) ColumnAttributeType {
 	// If you add a new Attribute Keyword then don't forget to update
 	// processHeaderRow() and processSampleRow() case statements in
 	// loader.go to handle those new keywords.
-	if hasProcessAttributeKeyword(cell) {
-		return ProcessAttributeColumn
-	}
 
-	if hasSampleAttributeKeyword(cell) {
+	switch {
+	case hasProcessAttributeKeyword(cell):
+		return ProcessAttributeColumn
+
+	case hasSampleAttributeKeyword(cell):
+		return SampleAttributeColumn
+
+	case hasFileAttributeKeyword(cell):
+		return FileAttributeColumn
+
+	case hasKeyword(cell):
+		// if we are here it is a keyword but not a known one
+		return UnknownAttributeColumn
+
+	default:
+		// If there is no keyword then by default treat as a sample attribute column
 		return SampleAttributeColumn
 	}
-
-	if hasFileAttributeKeyword(cell) {
-		return FileAttributeColumn
-	}
-
-	return UnknownAttributeColumn
 }
 
 // hasSampleAttributeKeyword return true if the cell contains a keyword
@@ -69,6 +75,16 @@ func hasProcessAttributeKeyword(cell string) bool {
 // a keyword from the FileAttributesKeywords.
 func hasFileAttributeKeyword(cell string) bool {
 	return hasKeywordInCell(cell, FileAttributeKeywords)
+}
+
+// hasKeyword checks if there is a keyword annotation in the header, it doesn't
+// verify if it is a known keyword.
+func hasKeyword(cell string) bool {
+	if i := strings.Index(cell, ":"); i == -1 {
+		return false
+	}
+
+	return true
 }
 
 // hasKeywordInCell checks if the cell contains a keyword from the

@@ -36,6 +36,7 @@ func init() {
 	rootCmd.AddCommand(checkCmd)
 	checkCmd.Flags().StringP("file", "f", "", "Path to the excel spreadsheet")
 	checkCmd.Flags().IntP("header-row", "r", 0, "Row to start reading from")
+	checkCmd.Flags().BoolP("has-parent", "t", false, "2nd column is the parent column")
 }
 
 func cliCmdCheck(cmd *cobra.Command, args []string) {
@@ -51,7 +52,15 @@ func cliCmdCheck(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	processes, err := spreadsheet.Load(file, headerRow)
+	hasParent, err := cmd.Flags().GetBool("has-parent")
+	if err != nil {
+		fmt.Println("error", err)
+		os.Exit(1)
+	}
+
+	loader := spreadsheet.NewLoader(hasParent, headerRow, file)
+
+	processes, err := loader.Load()
 	if err != nil {
 		fmt.Println("Loading spreadsheet failed")
 		if merr, ok := err.(*multierror.Error); ok {

@@ -10,13 +10,27 @@ import (
 	"github.com/materials-commons/mcetl/internal/spreadsheet/model"
 )
 
+type Loader struct {
+	HasParent bool
+	HeaderRow int
+	Path      string
+}
+
+func NewLoader(hasParent bool, headerRow int, path string) *Loader {
+	return &Loader{
+		HasParent: hasParent,
+		HeaderRow: headerRow,
+		Path:      path,
+	}
+}
+
 // Load will load the given excel file. This assumes that each process is in a separate
 // worksheet and the process will take on the name of the worksheet. The way that Load
 // works is it transforms the spreadsheet into a data structure that can be more easily
 // understood and worked with. This is encompassed in the model.Worksheet data structure.
 // The header row parameter is the starting row for the header. Rows before that will
 // be skipped.
-func Load(path string, headerRow int) ([]*model.Worksheet, error) {
+func (l *Loader) Load() ([]*model.Worksheet, error) {
 	var worksheets []*model.Worksheet
 
 	// Make sure the keywords are valid before we start processing the spreadsheet,
@@ -26,7 +40,7 @@ func Load(path string, headerRow int) ([]*model.Worksheet, error) {
 		return worksheets, err
 	}
 
-	xlsx, err := excelize.OpenFile(path)
+	xlsx, err := excelize.OpenFile(l.Path)
 	if err != nil {
 		return worksheets, err
 	}
@@ -37,7 +51,7 @@ func Load(path string, headerRow int) ([]*model.Worksheet, error) {
 	// of loading errors so we can report back all the load/parsing errors
 	// to the user.
 	for index, name := range xlsx.GetSheetMap() {
-		worksheet, err := loadWorksheet(xlsx, headerRow, name, index)
+		worksheet, err := l.loadWorksheet(xlsx, name, index)
 		if err != nil {
 			savedErrs = multierror.Append(savedErrs, err)
 			continue
@@ -69,17 +83,17 @@ func Load(path string, headerRow int) ([]*model.Worksheet, error) {
 //
 // The rows after the header row contain the data. Columns 1 and 2 are special as they are reserved
 // for the sample name and the parent worksheet.
-func loadWorksheet(xlsx *excelize.File, headerRow int, worksheetName string, index int) (*model.Worksheet, error) {
+func (l *Loader) loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model.Worksheet, error) {
 	rows, err := xlsx.Rows(worksheetName)
 	if err != nil {
 		return nil, err
 	}
 
-	rowProcessor := newRowProcessor(worksheetName, index)
+	rowProcessor := newRowProcessor(worksheetName, l.HasParent, index)
 	row := 0
 
 	// skip specified rows to header
-	for i := 0; i < headerRow; i++ {
+	for i := 0; i < l.HeaderRow; i++ {
 		rows.Next()
 	}
 
