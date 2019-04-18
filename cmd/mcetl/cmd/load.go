@@ -29,6 +29,7 @@ func init() {
 	rootCmd.AddCommand(loadCmd)
 	loadCmd.Flags().StringP("file", "f", "", "Path to the excel spreadsheet to create experiment from")
 	loadCmd.Flags().StringP("project-id", "p", "", "Project to create experiment in")
+	loadCmd.Flags().StringP("project-name", "m", "", "Project name to create experiment in")
 	loadCmd.Flags().StringP("experiment-name", "n", "", "Name of experiment to create")
 	loadCmd.Flags().StringP("mcurl", "u", "http://localhost:5016/api", "URL for the API service")
 	loadCmd.Flags().StringP("apikey", "k", "", "apikey to pass in REST API calls")
@@ -158,12 +159,23 @@ func createWorkflowFromWorksheets(cmd *cobra.Command, client *mcapi.Client, work
 	var (
 		projectId      string
 		experimentName string
+		projectName    string
 		err            error
 	)
 
-	if projectId, err = cmd.Flags().GetString("project-id"); err != nil {
-		fmt.Println("error", err)
-		return err
+	if projectName, err = cmd.Flags().GetString("project-name"); err != nil {
+		if projectId, err = cmd.Flags().GetString("project-id"); err != nil {
+			fmt.Println("error", err)
+			return err
+		}
+	} else {
+		project, err := client.GetProjectOverviewByName(projectName)
+		if err != nil {
+			fmt.Println("error", err)
+			return err
+		}
+
+		projectId = project.ID
 	}
 
 	if experimentName, err = cmd.Flags().GetString("experiment-name"); err != nil {
