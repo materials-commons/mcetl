@@ -129,23 +129,34 @@ func addBaseDirToFilePaths(cmd *cobra.Command, worksheets []*model.Worksheet) er
 // createAPIClient creates a mcapi.Client setting the url and apikey
 // from the mcurl and apikey environment variables or command line parameters.
 func createAPIClient(cmd *cobra.Command) (*mcapi.Client, error) {
-	var err error
-	mcurl := config.GetString("mcurl")
-	if mcurl == "" {
-		if mcurl, err = cmd.Flags().GetString("mcurl"); err != nil {
-			fmt.Println("error", err)
-			return nil, err
-		}
+	var (
+		mcurl  string
+		apikey string
+		err    error
+	)
+
+	if mcurl, err = cmd.Flags().GetString("mcurl"); err != nil {
+		mcurl = config.GetString("mcurl")
 	}
+
+	if mcurl == "" {
+		err = errors.New("mcurl not set")
+		fmt.Println("error", err)
+		return nil, err
+	}
+
 	fmt.Println("Using mcurl:", mcurl)
 
-	apikey := config.GetString("apikey")
-	if apikey == "" {
-		if apikey, err = cmd.Flags().GetString("apikey"); err != nil {
-			fmt.Println("error", err)
-			return nil, err
-		}
+	if apikey, err = cmd.Flags().GetString("apikey"); err != nil {
+		apikey = config.GetString("apikey")
 	}
+
+	if apikey == "" {
+		err = errors.New("apikey not set")
+		fmt.Println("error", err)
+		return nil, err
+	}
+
 	fmt.Println("Using apikey:", apikey)
 
 	client := mcapi.NewClient(mcurl)
