@@ -150,7 +150,6 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) error 
 						r.worksheet.Name, rowIndex, column, colCell)
 					return errors.Wrapf(err, errDesc)
 				} else {
-					fmt.Printf("Converted attr %s cell %s to %v (worksheet %s, row %d, column %d)\n", attr.Name, colCell, val["value"], r.worksheet.Name, rowIndex, column)
 					sampleAttr.Value = val
 				}
 
