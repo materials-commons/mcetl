@@ -175,7 +175,7 @@ func createWorkflowFromWorksheets(cmd *cobra.Command, client *mcapi.Client, work
 		err            error
 	)
 
-	if projectName, err = cmd.Flags().GetString("project-name"); err != nil {
+	if projectName, err = cmd.Flags().GetString("project-name"); err != nil || projectName == "" {
 		if projectId, err = cmd.Flags().GetString("project-id"); err != nil {
 			fmt.Println("error", err)
 			return err
