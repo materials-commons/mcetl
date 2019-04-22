@@ -60,7 +60,7 @@ func cliCmdCheck(cmd *cobra.Command, args []string) {
 
 	loader := spreadsheet.NewLoader(hasParent, headerRow, file)
 
-	processes, err := loader.Load()
+	_, err = loader.Load()
 	if err != nil {
 		fmt.Println("Loading spreadsheet failed")
 		if merr, ok := err.(*multierror.Error); ok {
@@ -71,8 +71,8 @@ func cliCmdCheck(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	if err := spreadsheet.Display.Apply(processes); err != nil {
-		fmt.Println("Unable to process spreadsheet:", err)
-		os.Exit(1)
-	}
+	//if err := spreadsheet.Display.Apply(processes); err != nil {
+	//	fmt.Println("Unable to process spreadsheet:", err)
+	//	os.Exit(1)
+	//}
 }
