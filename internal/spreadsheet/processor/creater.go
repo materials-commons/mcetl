@@ -179,22 +179,7 @@ func (c *Creater) createProcessWithAttrs(process *model.Worksheet, attrs []*mode
 func (c *Creater) createSample(sample *model.Sample) (*mcapi.Sample, error) {
 	c.Count++
 	c.AddCount("createSample")
-	//return &mcapi.Sample{}, nil
-	var attrs []mcapi.Property
-	for _, attr := range sample.Attributes {
-		property := mcapi.Property{
-			Name: attr.Name,
-		}
-		attrs = append(attrs, property)
-		m := mcapi.Measurement{
-			Unit:  attr.Unit,
-			Value: attr.Value["value"],
-			OType: "object",
-		}
-		property.Measurements = append(property.Measurements, m)
-	}
-
-	return c.client.CreateSample(c.ProjectID, c.ExperimentID, sample.Name, attrs)
+	return c.client.CreateSample(c.ProjectID, c.ExperimentID, sample.Name, nil)
 }
 
 // addMeasurements adds measurements from the model.Sample to the server side process and sample/property set.
