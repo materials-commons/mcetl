@@ -77,6 +77,12 @@ func (d *Displayer) printWorkflowSteps(indent int, wp *WorkflowProcess) {
 	fmt.Println("")
 }
 
+func (d *Displayer) showAttributes(numberOfSpaces int, attrs []*model.Attribute) {
+	for _, attr := range attrs {
+		d.showAttr(numberOfSpaces, attr)
+	}
+}
+
 func (d *Displayer) showAttr(numberOfSpaces int, attr *model.Attribute) {
 	unit := "(No units given)"
 	if attr.Unit != "" {
