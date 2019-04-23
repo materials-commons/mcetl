@@ -209,6 +209,7 @@ func cell2NameAndUnit(cell string) (name, unit string) {
 	name = ""
 	unit = ""
 
+	cell = strings.TrimSpace(cell)
 	// Check for the default case of an empty cell
 	if cell == "" {
 		return name, unit
