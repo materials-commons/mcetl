@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
@@ -27,7 +28,7 @@ var loadCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(loadCmd)
-	loadCmd.Flags().StringP("file", "f", "", "Path to the excel spreadsheet to create experiment from")
+	loadCmd.Flags().StringP("files", "f", "", "Path(s) to the excel spreadsheet(s) to create experiment from")
 	loadCmd.Flags().StringP("project-id", "p", "", "Project to create experiment in")
 	loadCmd.Flags().StringP("project-name", "m", "", "Project name to create experiment in")
 	loadCmd.Flags().StringP("experiment-name", "n", "", "Name of experiment to create")
@@ -63,13 +64,13 @@ func cliCmdLoad(cmd *cobra.Command, args []string) {
 // transforms it into the internal representation of worksheets.
 func loadSpreadsheet(cmd *cobra.Command) ([]*model.Worksheet, error) {
 	var (
-		file      string
+		files     string
 		headerRow int
 		hasParent bool
 		err       error
 	)
 
-	if file, err = cmd.Flags().GetString("file"); err != nil {
+	if files, err = cmd.Flags().GetString("files"); err != nil {
 		fmt.Println("error", err)
 		return nil, err
 	}
@@ -84,7 +85,7 @@ func loadSpreadsheet(cmd *cobra.Command) ([]*model.Worksheet, error) {
 		return nil, err
 	}
 
-	loader := spreadsheet.NewLoader(hasParent, headerRow, file)
+	loader := spreadsheet.NewLoader(hasParent, headerRow, strings.Split(files, ","))
 
 	worksheets, err := loader.Load()
 	if err != nil {

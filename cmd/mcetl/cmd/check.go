@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/materials-commons/mcetl/internal/spreadsheet"
@@ -34,13 +35,13 @@ any ETL operations on the spreadsheets.`,
 
 func init() {
 	rootCmd.AddCommand(checkCmd)
-	checkCmd.Flags().StringP("file", "f", "", "Path to the excel spreadsheet")
+	checkCmd.Flags().StringP("files", "f", "", "Path to the excel spreadsheet")
 	checkCmd.Flags().IntP("header-row", "r", 0, "Row to start reading from")
 	checkCmd.Flags().BoolP("has-parent", "t", false, "2nd column is the parent column")
 }
 
 func cliCmdCheck(cmd *cobra.Command, args []string) {
-	file, err := cmd.Flags().GetString("file")
+	files, err := cmd.Flags().GetString("files")
 	if err != nil {
 		fmt.Print("error", err)
 		os.Exit(1)
@@ -58,7 +59,7 @@ func cliCmdCheck(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	loader := spreadsheet.NewLoader(hasParent, headerRow, file)
+	loader := spreadsheet.NewLoader(hasParent, headerRow, strings.Split(files, ","))
 
 	_, err = loader.Load()
 	if err != nil {

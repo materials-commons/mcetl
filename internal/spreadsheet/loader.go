@@ -13,14 +13,14 @@ import (
 type Loader struct {
 	HasParent bool
 	HeaderRow int
-	Path      string
+	Paths     []string
 }
 
-func NewLoader(hasParent bool, headerRow int, path string) *Loader {
+func NewLoader(hasParent bool, headerRow int, paths []string) *Loader {
 	return &Loader{
 		HasParent: hasParent,
 		HeaderRow: headerRow,
-		Path:      path,
+		Paths:     paths,
 	}
 }
 
@@ -40,23 +40,26 @@ func (l *Loader) Load() ([]*model.Worksheet, error) {
 		return worksheets, err
 	}
 
-	xlsx, err := excelize.OpenFile(l.Path)
-	if err != nil {
-		return worksheets, err
-	}
-
 	var savedErrs *multierror.Error
 
-	// Loop through each of the worksheets in the excel file creating a list
-	// of loading errors so we can report back all the load/parsing errors
-	// to the user.
-	for index, name := range xlsx.GetSheetMap() {
-		worksheet, err := l.loadWorksheet(xlsx, name, index)
+	// Loop through each file and build up the list of worksheets across all of the files
+	for _, file := range l.Paths {
+		xlsx, err := excelize.OpenFile(file)
 		if err != nil {
-			savedErrs = multierror.Append(savedErrs, err)
-			continue
+			return worksheets, err
 		}
-		worksheets = append(worksheets, worksheet)
+
+		// Loop through each of the worksheets in the excel file creating a list
+		// of loading errors so we can report back all the load/parsing errors
+		// to the user.
+		for index, name := range xlsx.GetSheetMap() {
+			worksheet, err := l.loadWorksheet(xlsx, name, index)
+			if err != nil {
+				savedErrs = multierror.Append(savedErrs, err)
+				continue
+			}
+			worksheets = append(worksheets, worksheet)
+		}
 	}
 
 	// To build the workflow column 2 in a worksheet is the parent column. It points to
