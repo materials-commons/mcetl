@@ -60,12 +60,18 @@ func (c *Creater) Apply(worksheets []*model.Worksheet) error {
 	// 3. Walk through the workflow creating each of the steps.
 	for _, wp := range wf.root {
 		if err := c.createWorkflowSteps(wp); err != nil {
+			// Even though there were errors the experiment loading is no longer "in progress", so
+			// adjust its status. Ignore errors as there is nothing we can do if this fails.
+			var _ = c.client.UpdateExperimentProgressStatus(c.ProjectID, c.ExperimentID, false)
 			return err
 		}
 	}
 
 	fmt.Println("Total calls:", c.Count)
 	fmt.Printf("%#v\n", c.ByCallCounts)
+
+	// Ignore error - doesn't really matter if this succeeds
+	var _ = c.client.UpdateExperimentProgressStatus(c.ProjectID, c.ExperimentID, false)
 	return nil
 }
 
@@ -140,7 +146,7 @@ func (c *Creater) AddCount(what string) {
 func (c *Creater) createExperiment() error {
 	c.Count++
 	c.AddCount("createExperiment")
-	experiment, err := c.client.CreateExperiment(c.ProjectID, c.Name, c.Description)
+	experiment, err := c.client.CreateExperiment(c.ProjectID, c.Name, c.Description, true)
 	if err != nil {
 		return err
 	}
