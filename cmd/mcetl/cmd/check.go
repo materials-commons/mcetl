@@ -75,14 +75,14 @@ func cliCmdCheck(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	client, err := createAPIClient(checkCmd)
+	client, err := createAPIClient(cmd)
 	if err != nil {
 		// No API Client params were set
 		return
 	}
 
 	var projectID string
-	if projectID, err = checkCmd.Flags().GetString("project-id"); err != nil {
+	if projectID, err = cmd.Flags().GetString("project-id"); err != nil {
 		fmt.Println("error", err)
 		os.Exit(1)
 	}
