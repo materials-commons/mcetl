@@ -38,6 +38,9 @@ func init() {
 	checkCmd.Flags().StringP("files", "f", "", "Path to the excel spreadsheet")
 	checkCmd.Flags().IntP("header-row", "r", 0, "Row to start reading from")
 	checkCmd.Flags().BoolP("has-parent", "t", false, "2nd column is the parent column")
+	checkCmd.Flags().StringP("project-id", "p", "", "Project to create experiment in")
+	checkCmd.Flags().StringP("mcurl", "u", "http://localhost:5016/api", "URL for the API service")
+	checkCmd.Flags().StringP("apikey", "k", "", "apikey to pass in REST API calls")
 }
 
 func cliCmdCheck(cmd *cobra.Command, args []string) {
@@ -61,7 +64,7 @@ func cliCmdCheck(cmd *cobra.Command, args []string) {
 
 	loader := spreadsheet.NewLoader(hasParent, headerRow, strings.Split(files, ","))
 
-	_, err = loader.Load()
+	worksheets, err := loader.Load()
 	if err != nil {
 		fmt.Println("Loading spreadsheet failed")
 		if merr, ok := err.(*multierror.Error); ok {
@@ -72,8 +75,26 @@ func cliCmdCheck(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	//if err := spreadsheet.Display.Apply(processes); err != nil {
-	//	fmt.Println("Unable to process spreadsheet:", err)
-	//	os.Exit(1)
-	//}
+	client, err := createAPIClient(checkCmd)
+	if err != nil {
+		// No API Client params were set
+		return
+	}
+
+	var projectID string
+	if projectID, err = checkCmd.Flags().GetString("project-id"); err != nil {
+		fmt.Println("error", err)
+		os.Exit(1)
+	}
+
+	if client != nil && projectID != "" {
+		if err := loader.ValidateFilesExistInProject(worksheets, projectID, client); err != nil {
+			if merr, ok := err.(*multierror.Error); ok {
+				for _, e := range merr.Errors {
+					fmt.Println(" ", e)
+				}
+			}
+			os.Exit(1)
+		}
+	}
 }

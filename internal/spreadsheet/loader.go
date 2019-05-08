@@ -7,6 +7,7 @@ import (
 
 	"github.com/360EntSecGroup-Skylar/excelize"
 
+	mcapi "github.com/materials-commons/gomcapi"
 	"github.com/materials-commons/mcetl/internal/spreadsheet/model"
 )
 
@@ -70,6 +71,34 @@ func (l *Loader) Load() ([]*model.Worksheet, error) {
 	}
 
 	return worksheets, savedErrs.ErrorOrNil()
+}
+
+// ValidateFilesExistInProject will check that all the files in a given spreadsheet exist. It is broken out as
+// a separate method from Load as checking can be expensive and the Load method is used both during
+// checking and during the process where the spreadsheet is used to create data on the server. In
+// this way the user of the API can decide when this potentially expensive step should be run.
+func (l *Loader) ValidateFilesExistInProject(worksheets []*model.Worksheet, projectID string, c *mcapi.Client) error {
+	uniqueFilePaths := make(map[string]bool)
+
+	// Construct a list of all the unique file paths so we don't check a path multiple times. This could
+	// occur because the same file path is used in multiple samples.
+	for _, worksheet := range worksheets {
+		for _, sample := range worksheet.Samples {
+			for _, file := range sample.Files {
+				uniqueFilePaths[file.Path] = true
+			}
+		}
+	}
+
+	var savedErrors *multierror.Error
+
+	for path := range uniqueFilePaths {
+		if _, err := c.GetFileByPathInProject(path, projectID); err != nil {
+			savedErrors = multierror.Append(savedErrors, fmt.Errorf("file '%s' not found in project", path))
+		}
+	}
+
+	return savedErrors.ErrorOrNil()
 }
 
 // loadWorksheet will load the given worksheet into the model.Worksheet data structure. The spreadsheet
