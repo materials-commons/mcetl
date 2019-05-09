@@ -106,13 +106,13 @@ func (c *Creater) createWorkflowSteps(wp *WorkflowProcess) error {
 			inputSamples := c.getInputSamples(wp)
 
 			for _, sample := range inputSamples {
-				if s, err := c.addSampleToProcess(wp.Process.ID, sample); err != nil {
+				worksheetSample := c.findSampleInWorksheet(sample.Name, wp.Worksheet.Samples)
+				if s, err := c.addSampleAndFilesToProcess(wp.Process.ID, sample, worksheetSample); err != nil {
 					return err
 				} else {
 					wp.Out = append(wp.Out, s)
 
 					// Add measurements
-					worksheetSample := c.findSampleInWorksheet(sample.Name, wp.Worksheet.Samples)
 					if worksheetSample != nil {
 						if err := c.addMeasurements(wp.Process.ID, s.ID, s.PropertySetID, worksheetSample); err != nil {
 							return err
@@ -258,9 +258,9 @@ func (c *Creater) findSampleFromServer(sampleName string, samples []*mcapi.Sampl
 	return nil
 }
 
-// addSampleToProcess will add the sample to the process on the server. It hides the details of constructing
-// the go-mcapi call.
-func (c *Creater) addSampleToProcess(processID string, sample *mcapi.Sample) (*mcapi.Sample, error) {
+// addSampleAndFilesToProcess will add the sample and associated filesto the process on the server. It hides the details
+// of constructing the go-mcapi call.
+func (c *Creater) addSampleAndFilesToProcess(processID string, sample *mcapi.Sample, worksheetSample *model.Sample) (*mcapi.Sample, error) {
 	c.Count++
 	c.AddCount("addSampleAndFilesToProcess")
 	//return &mcapi.Sample{}, nil
@@ -269,6 +269,16 @@ func (c *Creater) addSampleToProcess(processID string, sample *mcapi.Sample) (*m
 		SampleID:      sample.ID,
 		PropertySetID: sample.PropertySetID,
 		Transform:     true,
+	}
+
+	if worksheetSample != nil {
+		for _, file := range worksheetSample.Files {
+			f := mcapi.FileAndDirection{
+				Path:      file.Path,
+				Direction: "in",
+			}
+			connect.FilesByName = append(connect.FilesByName, f)
+		}
 	}
 	s, err := c.client.AddSampleAndFilesToProcess(c.ProjectID, c.ExperimentID, false, connect)
 	return s, err
