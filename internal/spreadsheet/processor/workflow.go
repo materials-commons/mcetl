@@ -199,7 +199,7 @@ func (w *Workflow) wireupWorkflow(worksheets []*model.Worksheet) {
 			if uniqueProcessFromWorksheet == nil {
 				// If this happens then we have a bug in the code for creating all the unique process instances
 				// because this means we've found a process that isn't in that map.
-				fmt.Printf("Can't find matching process to wire up %s %#v\n", worksheet.Name, sample)
+				fmt.Printf("Bug: Can't find matching process to wire up %s %#v\n", worksheet.Name, sample)
 				continue
 			}
 
@@ -215,7 +215,7 @@ func (w *Workflow) wireupWorkflow(worksheets []*model.Worksheet) {
 
 			if parentProcess == nil {
 				// Should never happen
-				fmt.Println("Can't find matching create sample process for ", sample.Name)
+				fmt.Println("Bug: Can't find matching create sample process for ", sample.Name)
 				continue
 			}
 
@@ -235,7 +235,7 @@ func (w *Workflow) wireProcessesTogetherFromTo(fromProcess, toProcess *WorkflowP
 func (w *Workflow) findProcessFromSampleInWorksheet(sample *model.Sample, worksheetName string) *WorkflowProcess {
 	key := w.makeSampleInstanceKey(sample, worksheetName)
 	if instance, ok := w.uniqueProcessInstances[key]; !ok {
-		fmt.Printf("Can't find matching process to wire up %s %#v\n", worksheetName, sample)
+		fmt.Printf("Warning: Can't find matching process to wire up %s %#v\n", worksheetName, sample)
 		return nil
 	} else {
 		return instance

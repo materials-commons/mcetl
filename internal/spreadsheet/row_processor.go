@@ -74,7 +74,7 @@ func (r *rowProcessor) processHeaderRow(row *excelize.Rows) {
 		case FileAttributeColumn:
 			r.columnType[column] = FileAttributeColumn
 		default:
-			fmt.Printf("Worksheet %s heading column %d with value %s has no keyword to identify its type\n", r.worksheet.Name, column, colCell)
+			fmt.Printf("Warning: Worksheet %s heading column %d with value '%s' has unknown keyword to identify its type\n", r.worksheet.Name, column, colCell)
 		}
 	}
 }
@@ -128,14 +128,12 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) error 
 			if colCell == "" {
 				// This column cell is blank so skip processing. This way empty attributes
 				// are not tracked and loaded onto the server.
-				fmt.Printf("Worksheet %s At Row %d, column %d, column type %s cell is blank\n", r.worksheet.Name, rowIndex, column, colType)
 				continue
 			}
 
 			switch {
 			case !ok:
-				// Couldn't find column type. This means the spreadsheet contains header columns without keywords.
-				fmt.Printf("Worksheet %s At Row %d, column %d unknown column type\n", r.worksheet.Name, rowIndex, column)
+				// Couldn't find column type. This means the spreadsheet contains header columns with unknown keywords.
 				continue
 
 			case colType == SampleAttributeColumn:
@@ -178,7 +176,7 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) error 
 				// If we are here then what happened is that a new column type was created and added
 				// into processHeaderRow(), but this case statement wasn't extended to handle that
 				// column type.
-				fmt.Printf("Bug - processHeaderRow() contains a new column type that isn't in processSampleRow. Cell with unknown header type %s, column %d\n", colCell, column)
+				fmt.Printf("Bug: processHeaderRow() contains a new column type that isn't in processSampleRow. Cell with unknown header type %s, column %d\n", colCell, column)
 			}
 		}
 	}

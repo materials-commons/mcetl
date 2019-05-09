@@ -262,15 +262,15 @@ func (c *Creater) findSampleFromServer(sampleName string, samples []*mcapi.Sampl
 // the go-mcapi call.
 func (c *Creater) addSampleToProcess(processID string, sample *mcapi.Sample) (*mcapi.Sample, error) {
 	c.Count++
-	c.AddCount("addSampleToProcess")
+	c.AddCount("addSampleAndFilesToProcess")
 	//return &mcapi.Sample{}, nil
-	connect := mcapi.ConnectSampleToProcess{
+	connect := mcapi.ConnectSampleAndFilesToProcess{
 		ProcessID:     processID,
 		SampleID:      sample.ID,
 		PropertySetID: sample.PropertySetID,
 		Transform:     true,
 	}
-	s, err := c.client.AddSampleToProcess(c.ProjectID, c.ExperimentID, false, connect)
+	s, err := c.client.AddSampleAndFilesToProcess(c.ProjectID, c.ExperimentID, false, connect)
 	return s, err
 }
 
