@@ -25,10 +25,14 @@ type Creater struct {
 	// for many of the mcapi REST calls.
 	ExperimentID string
 
+	// Does the second column represent the parent column that points to other worksheets. This allows the user
+	// to construct a workflow graph.
 	HasParent bool
 
+	// Total number of API calls made
 	Count int
 
+	// Counts by API call
 	ByCallCounts map[string]int
 
 	client *mcapi.Client
@@ -86,13 +90,9 @@ func (c *Creater) createWorkflowSteps(wp *WorkflowProcess) error {
 			wp.Out = append(wp.Out, sample)
 		}
 	} else {
-		// Create the process
+		// Create the process if it doesn't already exist
 		// 1. Find the input sample
 		// 2. Create the process with that input sample and attr
-		//     == or if process already exists ==
-		// 1. Add additional measurements for that process/sample
-		//
-		// Going to need to keep track of the samples so we know what the inputs are
 		if wp.Process == nil {
 			// Create the process
 			p, err := c.createProcessWithAttrs(wp.Worksheet, wp.Samples[0].ProcessAttrs)
