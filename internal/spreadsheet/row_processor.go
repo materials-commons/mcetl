@@ -46,9 +46,13 @@ func (r *rowProcessor) processHeaderRow(row *excelize.Rows) {
 	for _, colCell := range row.Columns() {
 		colCell = strings.TrimSpace(colCell)
 		column++
-		if column < 3 {
+		if column < 3 && r.HasParent {
 			// column one is sample name
 			// column two is parent sample
+			continue
+		} else if column < 2 {
+			// column one is sample name
+			// there is nothing special about column 2
 			continue
 		}
 
