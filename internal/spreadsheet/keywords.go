@@ -33,11 +33,12 @@ var FileAttributeKeywords = map[string]bool{
 }
 
 // columnAttributeTypeFromKeyword takes a cell, checks if it has a keyword
-// in it and if so returns the keyword type.
+// in it and if so returns the keyword type. Defaults to SampleAttributeColumn
+// if there is no keyword.
 func columnAttributeTypeFromKeyword(cell string) ColumnAttributeType {
 	// If you add a new Attribute Keyword then don't forget to update
-	// processHeaderRow() and processSampleRow() case statements in
-	// loader.go to handle those new keywords.
+	// processHeaderRow() and processSampleRow() method case statements
+	// in row_processor.go to handle those new keywords.
 
 	switch {
 	case hasProcessAttributeKeyword(cell):

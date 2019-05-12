@@ -258,7 +258,7 @@ func (c *Creater) findSampleFromServer(sampleName string, samples []*mcapi.Sampl
 	return nil
 }
 
-// addSampleAndFilesToProcess will add the sample and associated filesto the process on the server. It hides the details
+// addSampleAndFilesToProcess will add the sample and associated files to the process on the server. It hides the details
 // of constructing the go-mcapi call.
 func (c *Creater) addSampleAndFilesToProcess(processID string, sample *mcapi.Sample, worksheetSample *model.Sample) (*mcapi.Sample, error) {
 	c.Count++
