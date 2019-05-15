@@ -178,7 +178,10 @@ func (c *Creater) createProcessWithAttrs(process *model.Worksheet, attrs []*mode
 		}
 	}
 
-	return c.client.CreateProcess(c.ProjectID, c.ExperimentID, process.Name, []mcapi.Setup{setup})
+	// The second process.Name is the process type. For ETL we set the type to the process name which is the
+	// same as the worksheet name. Since there are a limited number of worksheets the assumption is that all
+	// processe created from a particular worksheet are equivalent.
+	return c.client.CreateProcess(c.ProjectID, c.ExperimentID, process.Name, process.Name, []mcapi.Setup{setup})
 }
 
 // createSample creates a new sample in the project on the server.
