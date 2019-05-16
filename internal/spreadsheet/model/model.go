@@ -68,6 +68,7 @@ type Worksheet struct {
 	ProcessAttrs []*Attribute
 	Samples      []*Sample
 	SampleAttrs  []*Attribute
+	FileHeaders  []*FileHeader
 }
 
 func (w *Worksheet) AddSample(sample *Sample) {
@@ -80,6 +81,10 @@ func (w *Worksheet) AddSampleAttr(attribute *Attribute) {
 
 func (w *Worksheet) AddProcessAttr(attribute *Attribute) {
 	w.ProcessAttrs = append(w.ProcessAttrs, attribute)
+}
+
+func (w *Worksheet) AddFileHeader(fileHeader *FileHeader) {
+	w.FileHeaders = append(w.FileHeaders, fileHeader)
 }
 
 /////////////////////////////////////////////////////////////////
@@ -132,5 +137,21 @@ func NewAttribute(name, unit string, column int) *Attribute {
 		Name:   name,
 		Unit:   unit,
 		Column: column,
+	}
+}
+
+/////////////////////////////////////////////////////////////////
+
+type FileHeader struct {
+	Description string
+	Path        string
+	Column      int
+}
+
+func NewFileHeader(description, path string, column int) *FileHeader {
+	return &FileHeader{
+		Description: description,
+		Path:        path,
+		Column:      column,
 	}
 }
