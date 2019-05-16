@@ -146,8 +146,6 @@ func createAPIClient(cmd *cobra.Command) (*mcapi.Client, error) {
 		return nil, err
 	}
 
-	fmt.Println("Using mcurl:", mcurl)
-
 	if apikey, err = cmd.Flags().GetString("apikey"); err != nil || apikey == "" {
 		apikey = config.GetString("apikey")
 	}
@@ -157,8 +155,6 @@ func createAPIClient(cmd *cobra.Command) (*mcapi.Client, error) {
 		fmt.Println("error", err)
 		return nil, err
 	}
-
-	fmt.Println("Using apikey:", apikey)
 
 	client := mcapi.NewClient(mcurl)
 	client.APIKey = apikey
