@@ -2,6 +2,7 @@ package spreadsheet
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
@@ -76,6 +77,8 @@ func (r *rowProcessor) processHeaderRow(row *excelize.Rows) {
 			r.columnType[column] = SampleAttributeColumn
 			r.worksheet.AddSampleAttr(attr)
 		case FileAttributeColumn:
+			fileHeader := createFileHeader(colCell, column)
+			r.worksheet.AddFileHeader(fileHeader)
 			r.columnType[column] = FileAttributeColumn
 		default:
 			fmt.Printf("Warning: Worksheet %s heading column %d with value '%s' has unknown keyword to identify its type\n", r.worksheet.Name, column, colCell)
@@ -129,7 +132,7 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) error 
 			// we are looking at.
 			colType, ok := r.columnType[column]
 
-			if colCell == "" {
+			if isBlank(colCell) {
 				// This column cell is blank so skip processing. This way empty attributes
 				// are not tracked and loaded onto the server.
 				continue
@@ -174,7 +177,8 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) error 
 				currentSample.AddProcessAttribute(processAttr)
 
 			case colType == FileAttributeColumn:
-				currentSample.AddFile(cell2Filepath(colCell), column)
+				fileHeader := findFileHeader(r.worksheet.FileHeaders, column)
+				currentSample.AddFile(cell2Filepath(colCell, fileHeader), column)
 
 			default:
 				// If we are here then what happened is that a new column type was created and added
@@ -195,6 +199,19 @@ func findAttr(attributes []*model.Attribute, column int) *model.Attribute {
 	for _, attr := range attributes {
 		if attr.Column == column {
 			return attr
+		}
+	}
+
+	return nil
+}
+
+// findFileHeader will look up the file header in the given list of file headers. The file headers
+// were built during the header processing stage. Each file header has a column associated with it
+// and this method matches on the column to find the given file header.
+func findFileHeader(fileHeaders []*model.FileHeader, column int) *model.FileHeader {
+	for _, fileHeader := range fileHeaders {
+		if fileHeader.Column == column {
+			return fileHeader
 		}
 	}
 
@@ -262,13 +279,56 @@ func cell2NameAndUnit(cell string) (name, unit string) {
 	}
 }
 
-// cell2Filepath takes a file keyword cell and returns the path portion
-func cell2Filepath(cell string) string {
-	i := strings.Index(cell, ":")
+// createFileHeader parses the cell for a file header. The format of a cell
+// is keyword:description:path, keyword:path or keyword:.
+func createFileHeader(cell string, column int) *model.FileHeader {
+	// Example of parsing:
+	//
+	// fullCell := "file:abc:path/"
+	// partialCell := "file:path/"
+	//
+	// firstColon := strings.Index(fullCell, ":")
+	// secondColon := strings.LastIndex(fullCell, ":")
+	// fmt.Printf("Description: '%s', Path: '%s'\n", fullCell[firstColon+1:secondColon], fullCell[secondColon+1:])
+	//    => Description: 'abc', Path: 'path/'
+	//
+	// firstColon = strings.Index(partialCell, ":")
+	// secondColon = strings.LastIndex(partialCell, ":")
+	// fmt.Printf("Description: '%s', Path: '%s'\n", "", partialCell[firstColon+1:])
+	//    => Description: '', Path: 'path/'
+	//
+
+	firstColon := strings.Index(cell, ":")
+	secondColon := strings.LastIndex(cell, ":")
+	if firstColon != secondColon {
+		// if firstColon != secondColon then there is a description and a path
+		// ie, the format is:  FILE:My description:directory-path/to/file/in/cell/in/materials-commons
+		return model.NewFileHeader(cell[firstColon+1:secondColon], cell[secondColon+1:], column)
+	}
+
+	// If we are here then firstColon == secondColon, which means the format is:
+	// FILE:directory-path/to/file/in/cell/in/materials-commons
+	return model.NewFileHeader("", cell[firstColon+1:], column)
+}
+
+// cell2Filepath converts a given cell into a file path. It does this by first checking
+// if the cell contains a '/', if it does then the cell is assumed to be a full path. If
+// it doesn't then the cell references the file name and the path is derived from the
+// fileHeader. If fileHeader is nil then it is ignored.
+func cell2Filepath(cell string, fileHeader *model.FileHeader) string {
+	i := strings.Index(cell, "/")
 	if i != -1 {
-		// Given a string like:
-		//   file:/home/file1.txt => /home/file1.txt
-		return strings.TrimSpace(cell[i+1:])
+		// The cell contains a '/' character so it is path, just
+		// return the cell
+		return cell
+	}
+
+	// If we are here then there was no '/' in the cell, so the cell just contains a
+	// filename. Join the fileHeader Path to the file name if fileHeader isn't nil,
+	// otherwise just return the cell.
+	if fileHeader != nil {
+		return filepath.Join(fileHeader.Path, cell)
+
 	}
 
 	return cell
