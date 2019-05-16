@@ -32,6 +32,25 @@ var FileAttributeKeywords = map[string]bool{
 	"files": true,
 }
 
+// Default set of cell values that are treated as a blank cell
+var BlankCellKeywords = map[string]bool{
+	"n/a":   true,
+	"blank": true,
+}
+
+// isBlank returns true if the cell should be treated as blank by checking
+// if the trimmed cell is equal to "", or if the lower case value of the
+// cell is in the list of "blank" keywords.
+func isBlank(cell string) bool {
+	lowerCaseCell := strings.ToLower(strings.TrimSpace(cell))
+	if cell == "" {
+		return true
+	}
+
+	_, ok := BlankCellKeywords[lowerCaseCell]
+	return ok
+}
+
 // columnAttributeTypeFromKeyword takes a cell, checks if it has a keyword
 // in it and if so returns the keyword type. Defaults to SampleAttributeColumn
 // if there is no keyword.
