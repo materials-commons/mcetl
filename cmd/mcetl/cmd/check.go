@@ -80,7 +80,6 @@ func cliCmdCheck(cmd *cobra.Command, args []string) {
 					fmt.Println(" ", e)
 				}
 			}
-			os.Exit(1)
 		}
 	}
 }

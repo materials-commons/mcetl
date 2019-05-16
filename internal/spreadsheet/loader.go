@@ -94,7 +94,7 @@ func (l *Loader) ValidateFilesExistInProject(worksheets []*model.Worksheet, proj
 
 	for path := range uniqueFilePaths {
 		if _, err := c.GetFileByPathInProject(path, projectID); err != nil {
-			savedErrors = multierror.Append(savedErrors, fmt.Errorf("file '%s' not found in project", path))
+			savedErrors = multierror.Append(savedErrors, fmt.Errorf("warning: file '%s' not found in project", path))
 		}
 	}
 
