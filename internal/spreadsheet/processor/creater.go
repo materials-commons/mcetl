@@ -6,7 +6,7 @@ package processor
 import (
 	"fmt"
 
-	"github.com/materials-commons/gomcapi"
+	mcapi "github.com/materials-commons/gomcapi"
 	"github.com/materials-commons/mcetl/internal/spreadsheet/model"
 )
 
