@@ -269,13 +269,13 @@ func cell2NameAndUnit(cell string) (name, unit string) {
 	case indexClosingParen != -1:
 		name = cell[:indexOpeningParen]
 		unit = cell[indexOpeningParen+1 : indexClosingParen]
-		return name, unit
+		return strings.TrimSpace(name), strings.TrimSpace(unit)
 	default:
 		// indexClosingParen == -1, which means we have a string like: abc(c
 		// that has no closing paren
 		name = cell[:indexOpeningParen]
 		unit = cell[indexOpeningParen+1:]
-		return name, unit
+		return strings.TrimSpace(name), strings.TrimSpace(unit)
 	}
 }
 
@@ -303,12 +303,12 @@ func createFileHeader(cell string, column int) *model.FileHeader {
 	if firstColon != secondColon {
 		// if firstColon != secondColon then there is a description and a path
 		// ie, the format is:  FILE:My description:directory-path/to/file/in/cell/in/materials-commons
-		return model.NewFileHeader(cell[firstColon+1:secondColon], cell[secondColon+1:], column)
+		return model.NewFileHeader(cell[firstColon+1:secondColon], strings.TrimSpace(cell[secondColon+1:]), column)
 	}
 
 	// If we are here then firstColon == secondColon, which means the format is:
 	// FILE:directory-path/to/file/in/cell/in/materials-commons
-	return model.NewFileHeader("", cell[firstColon+1:], column)
+	return model.NewFileHeader("", strings.TrimSpace(cell[firstColon+1:]), column)
 }
 
 // cell2Filepath converts a given cell into a file path. It does this by first checking
