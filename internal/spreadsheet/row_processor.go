@@ -47,6 +47,10 @@ func (r *rowProcessor) processHeaderRow(row *excelize.Rows) {
 	for _, colCell := range row.Columns() {
 		colCell = strings.TrimSpace(colCell)
 		column++
+		// Check for columns to skip. Column 1 is sample name and column 2
+		// could be the parent column. Always skip column 1, and optionally
+		// skip column 2 if HasParent is true (indicating that column 2 is
+		// used to construct the workflow).
 		if column < 3 && r.HasParent {
 			// column one is sample name
 			// column two is parent sample
