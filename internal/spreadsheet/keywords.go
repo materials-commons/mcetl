@@ -32,6 +32,12 @@ var FileAttributeKeywords = map[string]bool{
 	"files": true,
 }
 
+var IgnoreAttributeKeywords = map[string]bool{
+	"i":      true,
+	"ignore": true,
+	"note":   true,
+}
+
 // Default set of cell values that are treated as a blank cell
 var BlankCellKeywords = map[string]bool{
 	"n/a":   true,
@@ -69,6 +75,9 @@ func columnAttributeTypeFromKeyword(cell string) ColumnAttributeType {
 	case hasFileAttributeKeyword(cell):
 		return FileAttributeColumn
 
+	case hasIgnoreAttributeKeyword(cell):
+		return IgnoreAttributeColumn
+
 	case hasKeyword(cell):
 		// if we are here it is a keyword but not a known one
 		return UnknownAttributeColumn
@@ -86,15 +95,21 @@ func hasSampleAttributeKeyword(cell string) bool {
 }
 
 // hasProcessAttributeKeyword returns true if the cell contains
-// a keyword from the ProcessAttributesKeywords.
+// a keyword from the ProcessAttributeKeywords.
 func hasProcessAttributeKeyword(cell string) bool {
 	return hasKeywordInCell(cell, ProcessAttributeKeywords)
 }
 
 // hasFileAttributeKeyword returns true if the cell contains
-// a keyword from the FileAttributesKeywords.
+// a keyword from the FileAttributeKeywords.
 func hasFileAttributeKeyword(cell string) bool {
 	return hasKeywordInCell(cell, FileAttributeKeywords)
+}
+
+// hasIgnoreAttributeKeyword returns true if the cell contains
+// a keyword from the IgnoreAttributeKeywords.
+func hasIgnoreAttributeKeyword(cell string) bool {
+	return hasKeywordInCell(cell, IgnoreAttributeKeywords)
 }
 
 // hasKeyword checks if there is a keyword annotation in the header, it doesn't

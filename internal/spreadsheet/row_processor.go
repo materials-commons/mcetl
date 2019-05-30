@@ -84,6 +84,8 @@ func (r *rowProcessor) processHeaderRow(row *excelize.Rows) {
 			fileHeader := createFileHeader(colCell, column)
 			r.worksheet.AddFileHeader(fileHeader)
 			r.columnType[column] = FileAttributeColumn
+		case IgnoreAttributeColumn:
+			r.columnType[column] = IgnoreAttributeColumn
 		default:
 			fmt.Printf("Warning: Worksheet %s heading column %d with value '%s' has unknown keyword to identify its type\n", r.worksheet.Name, column, colCell)
 		}
@@ -183,6 +185,10 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) error 
 			case colType == FileAttributeColumn:
 				fileHeader := findFileHeader(r.worksheet.FileHeaders, column)
 				currentSample.AddFile(cell2Filepath(colCell, fileHeader), column)
+
+			case colType == IgnoreAttributeColumn:
+				// Ignore all values in this column
+				continue
 
 			default:
 				// If we are here then what happened is that a new column type was created and added
