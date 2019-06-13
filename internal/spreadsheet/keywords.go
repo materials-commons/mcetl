@@ -36,6 +36,7 @@ var IgnoreAttributeKeywords = map[string]bool{
 	"i":      true,
 	"ignore": true,
 	"note":   true,
+	"notes":  true,
 }
 
 // Default set of cell values that are treated as a blank cell
