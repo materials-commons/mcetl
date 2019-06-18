@@ -108,8 +108,14 @@ func hasFileAttributeKeyword(cell string) bool {
 }
 
 // hasIgnoreAttributeKeyword returns true if the cell contains
-// a keyword from the IgnoreAttributeKeywords.
+// a keyword from the IgnoreAttributeKeywords. Allow headers
+// to just be the word to ignore, ie: note, ignore, etc... as
+// opposed to note:, ignore:, etc...
 func hasIgnoreAttributeKeyword(cell string) bool {
+	if isOnlyWordInCell(cell, IgnoreAttributeKeywords) {
+		return true
+	}
+
 	return hasKeywordInCell(cell, IgnoreAttributeKeywords)
 }
 
@@ -134,6 +140,12 @@ func hasKeywordInCell(cell string, keywords map[string]bool) bool {
 
 	keyword := cell[:i]
 	_, ok := keywords[keyword]
+	return ok
+}
+
+func isOnlyWordInCell(cell string, keywords map[string]bool) bool {
+	cell = strings.ToLower(cell)
+	_, ok := keywords[cell]
 	return ok
 }
 
