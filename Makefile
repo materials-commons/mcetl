@@ -16,6 +16,9 @@ devrun:
 devtest:
 	-reflex -r '\.go$\' -s make test 
 
+devdeploy: bin
+	(cd ./cmd/mcetl; cp mcetl ../../../materialscommons.org/backend/prodbin)
+
 dep:
 	dep ensure
 
