@@ -62,6 +62,7 @@ type Workflow struct {
 	// that contains the create samples.
 	uniqueProcessInstances map[string]*WorkflowProcess
 
+	// Is column 2 treated as a pointer to the parent worksheet?
 	HasParent bool
 }
 

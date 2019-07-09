@@ -65,9 +65,12 @@ func (l *Loader) Load() ([]*model.Worksheet, error) {
 
 	// To build the workflow column 2 in a worksheet is the parent column. It points to
 	// the sheet to that is sending a sample into this step. Validate that the parents
-	// were correctly specified.
-	if err := validateParents(worksheets); err != nil {
-		savedErrs = multierror.Append(savedErrs, err)
+	// were correctly specified. This step is only needed when column 2 points to other
+	// worksheets.
+	if l.HasParent {
+		if err := validateParents(worksheets); err != nil {
+			savedErrs = multierror.Append(savedErrs, err)
+		}
 	}
 
 	return worksheets, savedErrs.ErrorOrNil()
@@ -105,6 +108,7 @@ func (l *Loader) ValidateFilesExistInProject(worksheets []*model.Worksheet, proj
 // must have the follow format:
 //   1st row is composed of headers as follows:
 //     |sample|parent process for sample|keyword attribute columns|
+//   Note: 2nd column (parent process for sample) is optional, it may also be a normal attribute column.
 // Examples:
 //    This example has no process attributes
 //         |sample|parent sample|s:sample attr1(unit)|s:sample attr2(unit)|
@@ -113,8 +117,9 @@ func (l *Loader) ValidateFilesExistInProject(worksheets []*model.Worksheet, proj
 //    This example has 1 process attribute and 2 sample attributes
 //         |sample|parent sample|p:process attr1(unit)|s:sample attr1(unit)|s:sample attr2(unit)|
 //
-// The rows after the header row contain the data. Columns 1 and 2 are special as they are reserved
-// for the sample name and the parent worksheet.
+// The rows after the header row contain the data. Column 1 is special and column 2 may be special (if HasParent is true
+// then column 2 is a special column). Column 1 is the sample name, and column 2, if it is special is the worksheet that
+// is the parent process for this step.
 func (l *Loader) loadWorksheet(xlsx *excelize.File, worksheetName string, index int) (*model.Worksheet, error) {
 	rows, err := xlsx.Rows(worksheetName)
 	if err != nil {

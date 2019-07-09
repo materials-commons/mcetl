@@ -108,7 +108,8 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) error 
 		colCell = strings.TrimSpace(colCell)
 		column++
 
-		// Go through each column and capture its value. Columns 1 and 2 are special.
+		// Go through each column and capture its value. Column 1 is special and column
+		// 2 may be special. If HasParent flag is true then column two is treated as a special column.
 		// Empty cell handling is column specific. If column 1 cell is blank then we
 		// skip the entire row. Column 2 is allowed to have blank columns. The rest
 		// of the columns can have blank cells, but if they are blank we just skip
@@ -131,11 +132,13 @@ func (r *rowProcessor) processSampleRow(row *excelize.Rows, rowIndex int) error 
 		} else {
 			// Process, Sample or File attribute
 
-			// Column 1 is sample, column 2 is parent worksheet. All the other columns are attributes. At this point
-			// the header row has been processed (in processHeaderRow()). The rowProcessor identified each of the
-			// header columns by their type (process, sample or file attribute). As we walk through the columns that
-			// make up a row we refer back to the rowProcessor columnType which will tell us which type of attribute
-			// we are looking at.
+			// Column 1 is sample, column 2 is parent worksheet if HasParent is true, otherwise it is an attribute
+			// column. All the other columns are attributes.
+			//
+			// At this point the header row has been processed (in processHeaderRow()). The rowProcessor identified
+			// each of the header columns by their type (process, sample or file attribute). As we walk through the
+			// columns that make up a row we refer back to the rowProcessor columnType which will tell us which type
+			// of attribute we are looking at.
 			colType, ok := r.columnType[column]
 
 			if isBlank(colCell) {
