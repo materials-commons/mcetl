@@ -159,9 +159,10 @@ func (c *Client) AddSampleAndFilesToProcess(projectID, experimentID string, simp
 }
 
 type SampleProperty struct {
-	Name         string        `json:"name"`
-	ID           string        `json:"id,omitempty"`
-	Measurements []Measurement `json:"measurements"`
+	Name         string                 `json:"name"`
+	ID           string                 `json:"id,omitempty"`
+	Measurements []Measurement          `json:"measurements"`
+	Metadata     map[string]interface{} `json:"metadata"`
 }
 
 type SampleMeasurements struct {
@@ -200,6 +201,10 @@ func (c *Client) AddMeasurementsToSampleInProcess(projectID, experimentID, proce
 	for _, attr := range body.Attributes {
 		if attr.Measurements == nil {
 			attr.Measurements = make([]Measurement, 0)
+		}
+
+		if attr.Metadata == nil {
+			attr.Metadata = make(map[string]interface{}, 0)
 		}
 	}
 

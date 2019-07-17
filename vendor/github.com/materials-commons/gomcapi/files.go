@@ -13,7 +13,7 @@ func (c *Client) GetFileByPathInProject(filePath, projectID string) (*File, erro
 		Path:      filePath,
 	}
 
-	if err := c.post(&result, body, "getFileByPathInProject"); err != nil {
+	if err := c.post(&result, body, "etl:getFileByPath"); err != nil {
 		return nil, err
 	}
 

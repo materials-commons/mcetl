@@ -84,7 +84,7 @@
     ".",
     "pkg/urlpath"
   ]
-  revision = "dfed11a04a61188e7daf987f3f417bcdeb2628e5"
+  revision = "ed7bad292fda2ff59a6a5e51240913e66996b9d4"
 
 [[projects]]
   name = "github.com/mitchellh/go-homedir"
@@ -134,8 +134,8 @@
 [[projects]]
   name = "github.com/spf13/cobra"
   packages = ["."]
-  revision = "67fc4837d267bc9bfd6e47f77783fcc3dffc68de"
-  version = "v0.0.4"
+  revision = "f2b07da1e2c38d5f12845a4f607e2e1018cbb1f5"
+  version = "v0.0.5"
 
 [[projects]]
   name = "github.com/spf13/jwalterweatherman"
@@ -152,8 +152,8 @@
 [[projects]]
   name = "github.com/spf13/viper"
   packages = ["."]
-  revision = "9e56dacc08fbbf8c9ee2dbc717553c758ce42bc9"
-  version = "v1.3.2"
+  revision = "b5bf975e5823809fb22c7644d008757f78a4259e"
+  version = "v1.4.0"
 
 [[projects]]
   branch = "master"
@@ -162,13 +162,13 @@
     "idna",
     "publicsuffix"
   ]
-  revision = "3ec19112720433827bbce8be9342797f5a6aaaf9"
+  revision = "da137c7871d730100384dbcf36e6f8fa493aef5b"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "ad400b1274690a55531a013560dc08706088f82b"
+  revision = "fae7ac547cb717d141c433a2a173315e216b64c4"
 
 [[projects]]
   name = "golang.org/x/text"
